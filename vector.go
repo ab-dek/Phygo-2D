@@ -18,14 +18,20 @@ func VectorAdd(v1, v2 Vector) Vector {
 	return NewVector(v1.X+v2.X, v1.Y+v2.Y)
 }
 
-func VectorAddValue(v Vector, add float32) Vector {
-	return NewVector(v.X+add, v.Y+add)
+func (v *Vector) AddValue(vAdd Vector) {
+	v.X += vAdd.X
+	v.Y += vAdd.Y
 }
 
 func VectorSubtract(v1, v2 Vector) Vector {
 	return NewVector(v1.X-v2.X, v1.Y-v2.Y)
 }
 
-func VectorSubtractValue(v Vector, sub float32) Vector {
-	return NewVector(v.X-sub, v.Y-sub)
+func (v *Vector) SubtractValue(vSub Vector) {
+	v.X += vSub.X
+	v.Y += vSub.Y
+}
+
+func VectorEquals(v1, v2 Vector) bool {
+	return v1.X == v2.X && v1.Y == v2.Y
 }
