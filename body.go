@@ -87,7 +87,7 @@ func CreateRectangleTriangles() [6]int {
 	return [6]int{0, 1, 2, 0, 2, 3}
 }
 
-func (b *Body) GetTransformedVertices() {
+func (b *Body) TransformVertices() {
 	if b.transformUpdateRequired {
 		transform := NewTransform(b.Position.X, b.Position.Y, b.Rotation)
 
