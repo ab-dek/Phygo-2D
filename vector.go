@@ -28,8 +28,8 @@ func VectorSubtract(v1, v2 Vector) Vector {
 }
 
 func (v *Vector) SubtractValue(vSub Vector) {
-	v.X += vSub.X
-	v.Y += vSub.Y
+	v.X -= vSub.X
+	v.Y -= vSub.Y
 }
 
 func VectorEquals(v1, v2 Vector) bool {

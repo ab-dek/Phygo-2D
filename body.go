@@ -10,6 +10,8 @@ const (
 )
 
 type Body struct {
+	Id int 
+
 	Position        Vector
 	Velocity        Vector
 	Rotation        float32
@@ -46,6 +48,7 @@ func CreateBodyCircle(pos Vector, isStatic bool, radius, density float32) *Body 
 	}
 	newBody.Area = radius * radius * math.Pi
 	newBody.Mass = newBody.Area * density
+	addBody(newBody)
 
 	return newBody
 }
@@ -66,6 +69,7 @@ func CreateBodyRectangle(pos Vector, isStatic bool, width, height, density float
 	newBody.Vertices = CreateRectangleVertices(width, height)
 	newBody.TriangleVertexIndices = CreateRectangleTriangles()
 	newBody.transformUpdateRequired = true
+	addBody(newBody)
 
 	return newBody
 }
@@ -96,6 +100,11 @@ func (b *Body) TransformVertices() {
 		}
 	}
 	b.transformUpdateRequired = false
+}
+
+func (b *Body) step(time float32) {
+	b.Position.AddValue(VectorScale(b.Velocity, time))
+	b.Rotation += b.AngularVelocity*time
 }
 
 func (b *Body) Move(deltaPos Vector) {
