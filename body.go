@@ -10,12 +10,13 @@ const (
 )
 
 type Body struct {
-	Id int 
+	Id int
 
 	Position        Vector
 	Velocity        Vector
 	Rotation        float32
 	AngularVelocity float32
+	Force           Vector
 
 	Density     float32
 	Mass        float32
@@ -39,8 +40,10 @@ type Body struct {
 func CreateBodyCircle(pos Vector, isStatic bool, radius, density float32) *Body {
 	newBody := &Body{
 		Position:        pos,
-		Velocity:        Vector{},
+		Velocity:        VectorZero(),
+		Rotation:        0.0,
 		AngularVelocity: 0.0,
+		Force:           VectorZero(),
 		Restitution:     0.0,
 		IsStatic:        false,
 		ShapeType:       CircleShape,
@@ -56,8 +59,10 @@ func CreateBodyCircle(pos Vector, isStatic bool, radius, density float32) *Body 
 func CreateBodyRectangle(pos Vector, isStatic bool, width, height, density float32) *Body {
 	newBody := &Body{
 		Position:        pos,
-		Velocity:        Vector{},
+		Velocity:        VectorZero(),
+		Rotation:        0.0,
 		AngularVelocity: 0.0,
+		Force:           VectorZero(),
 		Restitution:     0.0,
 		IsStatic:        false,
 		ShapeType:       RectangleShape,
@@ -103,21 +108,30 @@ func (b *Body) TransformVertices() {
 }
 
 func (b *Body) step(time float32) {
-	b.Position.AddValue(VectorScale(b.Velocity, time))
-	b.Rotation += b.AngularVelocity*time
+	acceleration := VectorMul(b.Force, 1/b.Mass)
+	b.Velocity.AddValue(VectorMul(acceleration, time))
+	b.Position.AddValue(VectorMul(b.Velocity, time))
+	b.Rotation += b.AngularVelocity * time
+
+	if b.Velocity.X != 0 || b.Velocity.Y != 0 {
+		b.transformUpdateRequired = true
+	}
+
+	b.Force = VectorZero()
 }
 
 func (b *Body) Move(deltaPos Vector) {
 	b.Position.AddValue(deltaPos)
-	b.transformUpdateRequired = true
 }
 
 func (b *Body) MoveTo(newPos Vector) {
 	b.Position = newPos
-	b.transformUpdateRequired = true
 }
 
 func (b *Body) Rotate(amount float32) {
 	b.Rotation += amount
-	b.transformUpdateRequired = true
+}
+
+func (b *Body) ApplyForce(amount Vector) {
+	b.Force.AddValue(amount)
 }

@@ -63,11 +63,24 @@ func Step(time float32) {
 			bodyB := bodies[j]
 
 			if ok, depth, normal := collide(*bodyA, *bodyB); ok {
-				bodyA.Move(VectorScale(normal, -depth/2))
-				bodyB.Move(VectorScale(normal, depth/2))
+				bodyA.Move(VectorMul(normal, -depth/2))
+				bodyB.Move(VectorMul(normal, depth/2))
+
+				resolveCollision(bodyA, bodyB, normal)
 			}
 		}
 	}
+}
+
+func resolveCollision(bodyA, bodyB *Body, normal Vector) {
+	relativeVelocity := VectorSubtract(bodyB.Velocity, bodyA.Velocity)
+
+	e := min(bodyA.Restitution, bodyB.Restitution)
+	j := -(1 + e) * VectorDotProduct(relativeVelocity, normal)
+	j /= (1 / bodyA.Mass) + (1 / bodyB.Mass)
+
+	bodyA.Velocity.SubtractValue(VectorMul(normal, j/bodyA.Mass))
+	bodyB.Velocity.AddValue(VectorMul(normal, j/bodyB.Mass))
 }
 
 func collide(bodyA, bodyB Body) (bool, float32, Vector) {

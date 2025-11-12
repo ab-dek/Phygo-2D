@@ -16,6 +16,7 @@ func CheckCollisionPolygons(polygonA, polygonB []Vector, centerA, centerB Vector
 
 		edge := VectorSubtract(vertex2, vertex1)
 		axis := NewVector(-edge.Y, edge.X)
+		axis = VectorNormalize(axis)
 
 		minA, maxA := projectVertices(polygonA, axis)
 		minB, maxB := projectVertices(polygonB, axis)
@@ -42,6 +43,7 @@ func CheckCollisionPolygons(polygonA, polygonB []Vector, centerA, centerB Vector
 
 		edge := VectorSubtract(vertex2, vertex1)
 		axis := NewVector(-edge.Y, edge.X)
+		axis = VectorNormalize(axis)
 
 		minA, maxA := projectVertices(polygonA, axis)
 		minB, maxB := projectVertices(polygonB, axis)
@@ -58,13 +60,10 @@ func CheckCollisionPolygons(polygonA, polygonB []Vector, centerA, centerB Vector
 		}
 	}
 
-	depth /= VectorLen(normal)
-	normal = VectorNormalize(normal)
-
 	// checking if the direction polygonA is facing polygonB is the same as the normal
 	direction := VectorSubtract(centerB, centerA)
 	if VectorDotProduct(direction, normal) < 0 {
-		normal = VectorScale(normal, -1)
+		normal = VectorMul(normal, -1)
 	}
 	return true, depth, normal
 }
@@ -109,6 +108,7 @@ func CheckCollisionPolygonCircle(circleCenter, polygonCenter Vector, radius floa
 
 		edge := VectorSubtract(vertex2, vertex1)
 		axis := NewVector(-edge.Y, edge.X)
+		axis = VectorNormalize(axis)
 
 		minA, maxA := projectVertices(polygon, axis)
 		minB, maxB := projectCircle(circleCenter, axis, radius)
@@ -127,6 +127,7 @@ func CheckCollisionPolygonCircle(circleCenter, polygonCenter Vector, radius floa
 
 	cpIndex := findClosestPoint(circleCenter, polygon)
 	axis := VectorSubtract(polygon[cpIndex], circleCenter)
+	axis = VectorNormalize(axis)
 
 	minA, maxA := projectVertices(polygon, axis)
 	minB, maxB := projectCircle(circleCenter, axis, radius)
@@ -142,21 +143,18 @@ func CheckCollisionPolygonCircle(circleCenter, polygonCenter Vector, radius floa
 		normal = axis
 	}
 
-	depth /= VectorLen(normal)
-	normal = VectorNormalize(normal)
-
 	// checking if the direction polygonA is facing polygonB is the same as the normal
 	direction := VectorSubtract(polygonCenter, circleCenter)
 	if VectorDotProduct(direction, normal) > 0 {
-		normal = VectorScale(normal, -1)
+		normal = VectorMul(normal, -1)
 	}
 	return true, depth, normal
 }
 
 func projectCircle(center, axis Vector, radius float32) (float32, float32) {
 	direction := VectorNormalize(axis)
-	p1 := VectorAdd(center, VectorScale(direction, radius))
-	p2 := VectorSubtract(center, VectorScale(direction, radius))
+	p1 := VectorAdd(center, VectorMul(direction, radius))
+	p2 := VectorSubtract(center, VectorMul(direction, radius))
 
 	proj1 := VectorDotProduct(p1, axis)
 	proj2 := VectorDotProduct(p2, axis)
