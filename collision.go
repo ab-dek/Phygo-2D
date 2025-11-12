@@ -145,7 +145,7 @@ func CheckCollisionPolygonCircle(circleCenter, polygonCenter Vector, radius floa
 
 	// checking if the direction polygonA is facing polygonB is the same as the normal
 	direction := VectorSubtract(polygonCenter, circleCenter)
-	if VectorDotProduct(direction, normal) > 0 {
+	if VectorDotProduct(direction, normal) < 0 {
 		normal = VectorMul(normal, -1)
 	}
 	return true, depth, normal

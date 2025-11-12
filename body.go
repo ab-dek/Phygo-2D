@@ -20,6 +20,7 @@ type Body struct {
 
 	Density     float32
 	Mass        float32
+	InvMass     float32
 	Restitution float32
 	Area        float32
 	IsStatic    bool
@@ -27,52 +28,53 @@ type Body struct {
 	// used for circle shapes
 	Radius float32
 	// used for rectangle shapes
-	Width    float32
-	Height   float32
-	Vertices [4]Vector
+	Width  float32
+	Height float32
 
-	TriangleVertexIndices [6]int
-
+	Vertices                [4]Vector
 	TransformedVertices     [4]Vector
 	transformUpdateRequired bool
 }
 
-func CreateBodyCircle(pos Vector, isStatic bool, radius, density float32) *Body {
+func CreateBodyCircle(pos Vector, radius, density float32, restitution float32, isStatic bool) *Body {
 	newBody := &Body{
-		Position:        pos,
-		Velocity:        VectorZero(),
-		Rotation:        0.0,
-		AngularVelocity: 0.0,
-		Force:           VectorZero(),
-		Restitution:     0.0,
-		IsStatic:        false,
-		ShapeType:       CircleShape,
-		Radius:          radius,
+		Position:    pos,
+		Restitution: Clamp(restitution, 0, 1),
+		IsStatic:    isStatic,
+		ShapeType:   CircleShape,
+		Radius:      radius,
 	}
+
 	newBody.Area = radius * radius * math.Pi
 	newBody.Mass = newBody.Area * density
+	if !newBody.IsStatic {
+		newBody.InvMass = 1 / newBody.Mass
+	} else {
+		newBody.InvMass = 0.0
+	}
 	addBody(newBody)
 
 	return newBody
 }
 
-func CreateBodyRectangle(pos Vector, isStatic bool, width, height, density float32) *Body {
+func CreateBodyRectangle(pos Vector, width, height, density float32, restitution float32, isStatic bool) *Body {
 	newBody := &Body{
-		Position:        pos,
-		Velocity:        VectorZero(),
-		Rotation:        0.0,
-		AngularVelocity: 0.0,
-		Force:           VectorZero(),
-		Restitution:     0.0,
-		IsStatic:        false,
-		ShapeType:       RectangleShape,
-		Width:           width,
-		Height:          height,
+		Position:    pos,
+		Restitution: Clamp(restitution, 0, 1),
+		IsStatic:    isStatic,
+		ShapeType:   RectangleShape,
+		Width:       width,
+		Height:      height,
 	}
 	newBody.Area = height * width
 	newBody.Mass = newBody.Area * density
+	if !newBody.IsStatic {
+		newBody.InvMass = 1 / newBody.Mass
+	} else {
+		newBody.InvMass = 0.0
+	}
+	
 	newBody.Vertices = CreateRectangleVertices(width, height)
-	newBody.TriangleVertexIndices = CreateRectangleTriangles()
 	newBody.transformUpdateRequired = true
 	addBody(newBody)
 
@@ -92,10 +94,6 @@ func CreateRectangleVertices(width, height float32) [4]Vector {
 	}
 }
 
-func CreateRectangleTriangles() [6]int {
-	return [6]int{0, 1, 2, 0, 2, 3}
-}
-
 func (b *Body) TransformVertices() {
 	if b.transformUpdateRequired {
 		transform := NewTransform(b.Position.X, b.Position.Y, b.Rotation)
@@ -108,7 +106,11 @@ func (b *Body) TransformVertices() {
 }
 
 func (b *Body) step(time float32) {
-	acceleration := VectorMul(b.Force, 1/b.Mass)
+	if b.IsStatic {
+		return
+	}
+	acceleration := VectorMul(b.Force, b.InvMass)
+	b.Velocity.AddValue(VectorMul(gravity, time))
 	b.Velocity.AddValue(VectorMul(acceleration, time))
 	b.Position.AddValue(VectorMul(b.Velocity, time))
 	b.Rotation += b.AngularVelocity * time

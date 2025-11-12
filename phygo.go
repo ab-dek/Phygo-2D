@@ -62,9 +62,19 @@ func Step(time float32) {
 		for j := i + 1; j < count; j++ {
 			bodyB := bodies[j]
 
+			if bodyA.IsStatic && bodyB.IsStatic {
+				continue
+			}
+
 			if ok, depth, normal := collide(*bodyA, *bodyB); ok {
-				bodyA.Move(VectorMul(normal, -depth/2))
-				bodyB.Move(VectorMul(normal, depth/2))
+				if bodyA.IsStatic {
+					bodyB.Move(VectorMul(normal, depth))
+				} else if bodyB.IsStatic {
+					bodyA.Move(VectorMul(normal, -depth))
+				} else {
+					bodyA.Move(VectorMul(normal, -depth/2))
+					bodyB.Move(VectorMul(normal, depth/2))
+				}
 
 				resolveCollision(bodyA, bodyB, normal)
 			}
@@ -75,12 +85,16 @@ func Step(time float32) {
 func resolveCollision(bodyA, bodyB *Body, normal Vector) {
 	relativeVelocity := VectorSubtract(bodyB.Velocity, bodyA.Velocity)
 
+	if VectorDotProduct(relativeVelocity, normal) > 0 {
+		return
+	}
+
 	e := min(bodyA.Restitution, bodyB.Restitution)
 	j := -(1 + e) * VectorDotProduct(relativeVelocity, normal)
-	j /= (1 / bodyA.Mass) + (1 / bodyB.Mass)
+	j /= (bodyA.InvMass) + (bodyB.InvMass)
 
-	bodyA.Velocity.SubtractValue(VectorMul(normal, j/bodyA.Mass))
-	bodyB.Velocity.AddValue(VectorMul(normal, j/bodyB.Mass))
+	bodyA.Velocity.SubtractValue(VectorMul(normal, j*bodyA.InvMass))
+	bodyB.Velocity.AddValue(VectorMul(normal, j*bodyB.InvMass))
 }
 
 func collide(bodyA, bodyB Body) (bool, float32, Vector) {
@@ -91,7 +105,9 @@ func collide(bodyA, bodyB Body) (bool, float32, Vector) {
 		if shapeB == RectangleShape {
 			return CheckCollisionPolygons(bodyA.TransformedVertices[:], bodyB.TransformedVertices[:], bodyA.Position, bodyB.Position)
 		} else {
-			return CheckCollisionPolygonCircle(bodyB.Position, bodyA.Position, bodyB.Radius, bodyA.TransformedVertices[:])
+			c, d, n := CheckCollisionPolygonCircle(bodyB.Position, bodyA.Position, bodyB.Radius, bodyA.TransformedVertices[:])
+			n = VectorMul(n, -1)
+			return c, d, n
 		}
 	} else {
 		if shapeB == RectangleShape {
