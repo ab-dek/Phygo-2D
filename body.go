@@ -55,6 +55,8 @@ func CreateBodyCircle(pos Vector, radius, density float32, restitution float32, 
 	} else {
 		newBody.InvMass = 0.0
 	}
+	newBody.transformUpdateRequired = true
+	newBody.aabbUpdateRequired = true
 	addBody(newBody)
 
 	return newBody
@@ -79,6 +81,7 @@ func CreateBodyRectangle(pos Vector, width, height, density float32, restitution
 
 	newBody.Vertices = CreateRectangleVertices(width, height)
 	newBody.transformUpdateRequired = true
+	newBody.aabbUpdateRequired = true
 	addBody(newBody)
 
 	return newBody

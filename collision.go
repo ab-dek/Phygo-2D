@@ -205,3 +205,11 @@ func findContactPoints(bodyA, bodyB Body) ([2]Vector, int) {
 	}
 	return contactPoints, contactCount
 }
+
+func CheckCollisionAABBs(a, b AABB) bool {
+	if a.Max.X <= b.Min.X || b.Max.X <= a.Min.X ||
+		a.Max.Y <= b.Min.Y || b.Max.Y <= a.Min.Y {
+		return false
+	}
+	return true
+}

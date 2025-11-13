@@ -2,10 +2,10 @@ package phygo
 
 // globals
 var (
-	bodies        [10]*Body
+	bodies        [100]*Body
 	bodyCount     = 0 // number of bodies
 	gravity       = NewVector(0, 9.81)
-	manifolds     [100]*Manifold
+	manifolds     [1000]*Manifold
 	manifoldCount = 0
 
 	iterations = 32 // number of steps per frame
@@ -86,16 +86,22 @@ func Step(time float32, iteration int) {
 	}
 
 	// clearing the previous step manifold list
-	manifolds = [100]*Manifold{}
+	manifolds = [1000]*Manifold{}
 	manifoldCount = 0
 
 	//collision step
 	for i := 0; i < bodyCount-1; i++ {
 		bodyA := bodies[i]
+		aabbA := bodyA.GetAABB()
 		for j := i + 1; j < bodyCount; j++ {
 			bodyB := bodies[j]
+			aabbB := bodyB.GetAABB()
 
 			if bodyA.IsStatic && bodyB.IsStatic {
+				continue
+			}
+
+			if !CheckCollisionAABBs(aabbA, aabbB) {
 				continue
 			}
 
