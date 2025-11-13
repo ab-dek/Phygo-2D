@@ -7,6 +7,12 @@ var (
 	gravity = NewVector(0, 9.81)
 )
 
+//constants
+const (
+	minIterations = 1
+	maxIterations = 64
+)
+
 func addBody(b *Body) {
 	bodies[count] = b
 	b.Id = count
@@ -49,10 +55,17 @@ func GetBodies() []*Body {
 	return bodies[:count]
 }
 
-func Step(time float32) {
+func UpdatePhysics(time float32, iterations int) {
+	iteration := ClampInt(iterations, minIterations, maxIterations)
+	for i := 0; i < iteration; i++ {
+		Step(time, iteration)
+	}
+}
+
+func Step(time float32, iteration int) {
 	// movement step
 	for _, b := range bodies[:count] {
-		b.step(time)
+		b.step(time, iteration)
 		b.TransformVertices()
 	}
 

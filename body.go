@@ -31,15 +31,18 @@ type Body struct {
 	Width  float32
 	Height float32
 
-	Vertices                [4]Vector
+	Vertices                [4]Vector // centered at position (0, 0)
 	TransformedVertices     [4]Vector
 	transformUpdateRequired bool
+
+	aabb               AABB
+	aabbUpdateRequired bool
 }
 
 func CreateBodyCircle(pos Vector, radius, density float32, restitution float32, isStatic bool) *Body {
 	newBody := &Body{
 		Position:    pos,
-		Restitution: Clamp(restitution, 0, 1),
+		Restitution: ClampFloat(restitution, 0, 1),
 		IsStatic:    isStatic,
 		ShapeType:   CircleShape,
 		Radius:      radius,
@@ -60,7 +63,7 @@ func CreateBodyCircle(pos Vector, radius, density float32, restitution float32, 
 func CreateBodyRectangle(pos Vector, width, height, density float32, restitution float32, isStatic bool) *Body {
 	newBody := &Body{
 		Position:    pos,
-		Restitution: Clamp(restitution, 0, 1),
+		Restitution: ClampFloat(restitution, 0, 1),
 		IsStatic:    isStatic,
 		ShapeType:   RectangleShape,
 		Width:       width,
@@ -73,7 +76,7 @@ func CreateBodyRectangle(pos Vector, width, height, density float32, restitution
 	} else {
 		newBody.InvMass = 0.0
 	}
-	
+
 	newBody.Vertices = CreateRectangleVertices(width, height)
 	newBody.transformUpdateRequired = true
 	addBody(newBody)
@@ -105,10 +108,13 @@ func (b *Body) TransformVertices() {
 	b.transformUpdateRequired = false
 }
 
-func (b *Body) step(time float32) {
+func (b *Body) step(time float32, iteration int) {
 	if b.IsStatic {
 		return
 	}
+
+	time /= float32(iteration)
+	
 	acceleration := VectorMul(b.Force, b.InvMass)
 	b.Velocity.AddValue(VectorMul(gravity, time))
 	b.Velocity.AddValue(VectorMul(acceleration, time))
@@ -117,6 +123,7 @@ func (b *Body) step(time float32) {
 
 	if b.Velocity.X != 0 || b.Velocity.Y != 0 {
 		b.transformUpdateRequired = true
+		b.aabbUpdateRequired = true
 	}
 
 	b.Force = VectorZero()
@@ -136,4 +143,37 @@ func (b *Body) Rotate(amount float32) {
 
 func (b *Body) ApplyForce(amount Vector) {
 	b.Force.AddValue(amount)
+}
+
+func (b *Body) GetAABB() AABB {
+	if b.aabbUpdateRequired {
+		minX := float32(math.MaxFloat32)
+		minY := float32(math.MaxFloat32)
+		maxX := float32(math.SmallestNonzeroFloat32)
+		maxY := float32(math.SmallestNonzeroFloat32)
+		if b.ShapeType == RectangleShape {
+			for _, v := range b.TransformedVertices {
+				if v.X < minX {
+					minX = v.X
+				}
+				if v.X > maxX {
+					maxX = v.X
+				}
+				if v.Y < minY {
+					minY = v.Y
+				}
+				if v.Y > maxY {
+					maxY = v.Y
+				}
+			}
+		} else {
+			minX = b.Position.X - b.Radius
+			minY = b.Position.Y - b.Radius
+			maxX = b.Position.X + b.Radius
+			maxY = b.Position.Y + b.Radius
+		}
+		b.aabb = NewAABB(minX, minY, maxX, maxY)
+	}
+	b.aabbUpdateRequired = false
+	return b.aabb
 }

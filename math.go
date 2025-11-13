@@ -34,12 +34,28 @@ func VectorCrossProduct(v1, v2 Vector) float32 {
 	return v1.X*v2.Y - v1.Y*v2.X
 }
 
-func Clamp(value, min, max float32) float32 {
+func ClampFloat(value, min, max float32) float32 {
 	if min == max { 
 		return min 
 	} 
 	if min > max { 
 		return float32(math.NaN()) 
+	} 
+	if value < min { 
+		return min 
+	} 
+	if value > max {
+		return max 
+	}
+	return value
+}
+
+func ClampInt(value, min, max int) int {
+	if min == max { 
+		return min 
+	} 
+	if min > max { 
+		return 0
 	} 
 	if value < min { 
 		return min 
