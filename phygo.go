@@ -2,26 +2,30 @@ package phygo
 
 // globals
 var (
-	bodies  [10]*Body
-	count   = 0 // number of bodies
-	gravity = NewVector(0, 9.81)
+	bodies        [10]*Body
+	bodyCount     = 0 // number of bodies
+	gravity       = NewVector(0, 9.81)
+	manifolds     [100]*Manifold
+	manifoldCount = 0
+
+	iterations = 32 // number of steps per frame
 )
 
-//constants
+// constants
 const (
 	minIterations = 1
 	maxIterations = 64
 )
 
 func addBody(b *Body) {
-	bodies[count] = b
-	b.Id = count
-	count++
+	bodies[bodyCount] = b
+	b.Id = bodyCount
+	bodyCount++
 }
 
 func RemoveBody(b *Body) {
 	index := -1
-	for i := 0; i < count; i++ {
+	for i := 0; i < bodyCount; i++ {
 		if bodies[i].Id == b.Id {
 			index = i
 			break
@@ -33,14 +37,14 @@ func RemoveBody(b *Body) {
 
 	bodies[index] = nil
 
-	for i := index; i+1 < count; i++ {
+	for i := index; i+1 < bodyCount; i++ {
 		bodies[i] = bodies[i+1]
 	}
-	count--
+	bodyCount--
 }
 
 func GetBody(index int) (bool, *Body) {
-	if index < 0 || index >= count {
+	if index < 0 || index >= bodyCount {
 		return false, nil
 	}
 
@@ -48,14 +52,26 @@ func GetBody(index int) (bool, *Body) {
 }
 
 func GetBodiesCount() int {
-	return count
+	return bodyCount
 }
 
 func GetBodies() []*Body {
-	return bodies[:count]
+	return bodies[:bodyCount]
 }
 
-func UpdatePhysics(time float32, iterations int) {
+func createManifold(bodyA *Body, bodyB *Body, normal Vector, contacts [2]Vector, contactCount int) {
+	newManifold := &Manifold{
+		BodyA:        bodyA,
+		BodyB:        bodyB,
+		Normal:       normal,
+		Contacts:     contacts,
+		ContactCount: contactCount,
+	}
+	manifolds[manifoldCount] = newManifold
+	manifoldCount++
+}
+
+func UpdatePhysics(time float32) {
 	iteration := ClampInt(iterations, minIterations, maxIterations)
 	for i := 0; i < iteration; i++ {
 		Step(time, iteration)
@@ -64,15 +80,19 @@ func UpdatePhysics(time float32, iterations int) {
 
 func Step(time float32, iteration int) {
 	// movement step
-	for _, b := range bodies[:count] {
+	for _, b := range bodies[:bodyCount] {
 		b.step(time, iteration)
 		b.TransformVertices()
 	}
 
+	// clearing the previous step manifold list
+	manifolds = [100]*Manifold{}
+	manifoldCount = 0
+
 	//collision step
-	for i := 0; i < count-1; i++ {
+	for i := 0; i < bodyCount-1; i++ {
 		bodyA := bodies[i]
-		for j := i + 1; j < count; j++ {
+		for j := i + 1; j < bodyCount; j++ {
 			bodyB := bodies[j]
 
 			if bodyA.IsStatic && bodyB.IsStatic {
@@ -89,13 +109,23 @@ func Step(time float32, iteration int) {
 					bodyB.Move(VectorMul(normal, depth/2))
 				}
 
-				resolveCollision(bodyA, bodyB, normal)
+				cntPoints, cntCount := findContactPoints(*bodyA, *bodyB)
+				createManifold(bodyA, bodyB, normal, cntPoints, cntCount)
+
 			}
 		}
 	}
+
+	for _, m := range manifolds[:manifoldCount] {
+		resolveCollision(m)
+	}
 }
 
-func resolveCollision(bodyA, bodyB *Body, normal Vector) {
+func resolveCollision(manifold *Manifold) {
+	bodyA := manifold.BodyA
+	bodyB := manifold.BodyB
+	normal := manifold.Normal
+
 	relativeVelocity := VectorSubtract(bodyB.Velocity, bodyA.Velocity)
 
 	if VectorDotProduct(relativeVelocity, normal) > 0 {

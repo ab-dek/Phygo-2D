@@ -179,3 +179,29 @@ func findClosestPoint(point Vector, vertices []Vector) int {
 
 	return result
 }
+
+func findContactPoint(centerA, centerB Vector, radiusA float32) Vector {
+	dir := VectorNormalize(VectorSubtract(centerB, centerA))
+	return VectorAdd(centerA, VectorMul(dir, radiusA))
+}
+
+func findContactPoints(bodyA, bodyB Body) ([2]Vector, int) {
+	var contactPoints [2]Vector
+	var contactCount int = 0
+
+	shapeA := bodyA.ShapeType
+	shapeB := bodyB.ShapeType
+
+	if shapeA == RectangleShape {
+		if shapeB == RectangleShape {
+		} else {
+		}
+	} else {
+		if shapeB == RectangleShape {
+		} else {
+			contactPoints[0] = findContactPoint(bodyA.Position, bodyB.Position, bodyA.Radius)
+			contactCount = 1
+		}
+	}
+	return contactPoints, contactCount
+}
