@@ -53,24 +53,25 @@ func main() {
 
 		rl.BeginDrawing()
 
-		rl.ClearBackground(rl.RayWhite)
+		rl.ClearBackground(rl.Black)
 		rl.DrawFPS(10, 10)
-		rl.DrawText(fmt.Sprintf("step time: %s", stepTime), 10, 30, 20, rl.DarkGray)
-		rl.DrawText(fmt.Sprintf("body count: %d", bodyCount), 10, 50, 20, rl.DarkGray)
+		rl.DrawText(fmt.Sprintf("step time: %s", stepTime), 10, 30, 20, rl.DarkGreen)
+		rl.DrawText(fmt.Sprintf("body count: %d", bodyCount), 10, 50, 20, rl.DarkGreen)
 
 		for _, b := range phygo.GetBodies() {
-			for i := range b.TransformedVertices {
-				j := 0
-				vertexA := b.TransformedVertices[i]
-				if i+1 < 4 {
-					j = i + 1
+			if b.ShapeType == phygo.RectangleShape {
+				for i := range b.TransformedVertices {
+					j := 0
+					vertexA := b.TransformedVertices[i]
+					if i+1 < 4 {
+						j = i + 1
+					}
+					vertexB := b.TransformedVertices[j]
+					rl.DrawCircle(int32(b.TransformedVertices[i].X), int32(b.TransformedVertices[i].Y), 3, rl.DarkGreen)
+					rl.DrawLineV(rl.NewVector2(vertexA.X, vertexA.Y), rl.NewVector2(vertexB.X, vertexB.Y), rl.Green)
 				}
-				vertexB := b.TransformedVertices[j]
-				if b.ShapeType == phygo.RectangleShape {
-					rl.DrawLineV(rl.NewVector2(vertexA.X, vertexA.Y), rl.NewVector2(vertexB.X, vertexB.Y), rl.Black)
-				} else {
-					rl.DrawCircleLines(int32(b.Position.X), int32(b.Position.Y), b.Radius, rl.Black)
-				}
+			} else {
+				rl.DrawCircleLines(int32(b.Position.X), int32(b.Position.Y), b.Radius, rl.Green)
 			}
 		}
 		rl.EndDrawing()

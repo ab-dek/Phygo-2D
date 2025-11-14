@@ -76,5 +76,5 @@ func NearlyEqual(a, b float32) bool {
 }
 
 func VectorNearlyEqual(a, b Vector) bool {
-	return NearlyEqual(a.X, b.X) && NearlyEqual(a.Y, b.Y)
+	return VectorDistSqr(a, b) < 0.001*0.001
 }

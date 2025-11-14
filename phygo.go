@@ -4,7 +4,7 @@ package phygo
 var (
 	bodies        [100]*Body
 	bodyCount     = 0 // number of bodies
-	gravity       = NewVector(0, 9.81)
+	gravity       = NewVector(0, 900)
 	manifolds     [1000]*Manifold
 	manifoldCount = 0
 
@@ -74,11 +74,11 @@ func createManifold(bodyA *Body, bodyB *Body, normal Vector, contacts [2]Vector,
 func UpdatePhysics(time float32) {
 	iteration := ClampInt(iterations, minIterations, maxIterations)
 	for i := 0; i < iteration; i++ {
-		Step(time, iteration)
+		step(time, iteration)
 	}
 }
 
-func Step(time float32, iteration int) {
+func step(time float32, iteration int) {
 	// movement step
 	for _, b := range bodies[:bodyCount] {
 		b.step(time, iteration)
@@ -86,16 +86,20 @@ func Step(time float32, iteration int) {
 	}
 
 	// clearing the previous step manifold list
-	manifolds = [1000]*Manifold{}
+	for i := manifoldCount - 1; i >= 0; i-- {
+		if manifold := manifolds[i]; manifold != nil {
+			manifold = nil
+		}
+	}
 	manifoldCount = 0
 
 	//collision step
 	for i := 0; i < bodyCount-1; i++ {
 		bodyA := bodies[i]
-		aabbA := bodyA.GetAABB()
+		aabbA := bodyA.getAABB()
 		for j := i + 1; j < bodyCount; j++ {
 			bodyB := bodies[j]
-			aabbB := bodyB.GetAABB()
+			aabbB := bodyB.getAABB()
 
 			if bodyA.IsStatic && bodyB.IsStatic {
 				continue
@@ -164,5 +168,17 @@ func collide(bodyA, bodyB Body) (bool, float32, Vector) {
 		} else {
 			return CheckCollisionCircle(bodyA.Position, bodyB.Position, bodyA.Radius, bodyB.Radius)
 		}
+	}
+}
+
+func Close() {
+	for i := manifoldCount - 1; i >= 0; i-- {
+		if manifold := manifolds[i]; manifold != nil {
+			manifold = nil
+		}
+	}
+
+	for i := bodyCount - 1; i >= 0; i-- {
+		RemoveBody(bodies[i])
 	}
 }

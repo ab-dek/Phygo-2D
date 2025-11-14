@@ -26,15 +26,15 @@ type Body struct {
 	Inertia     float32
 	InvInertia  float32
 
-	IsStatic    bool
-	ShapeType   ShapeType
+	IsStatic  bool
+	ShapeType ShapeType
 	// used for circle shapes
 	Radius float32
 	// used for rectangle shapes
 	Width  float32
 	Height float32
 
-	Vertices                [4]Vector // centered at position (0, 0)
+	vertices                [4]Vector // centered at position (0, 0)
 	TransformedVertices     [4]Vector
 	transformUpdateRequired bool
 
@@ -53,10 +53,10 @@ func CreateBodyCircle(pos Vector, radius, density float32, restitution float32, 
 
 	newBody.Area = radius * radius * math.Pi
 	newBody.Mass = newBody.Area * density
-	newBody.Inertia = newBody.CalculateRotationalInertia()
+	newBody.Inertia = (newBody.Mass * radius * radius) / 2
 	if !newBody.IsStatic {
 		newBody.InvMass = 1 / newBody.Mass
-		newBody.InvInertia = 1/ newBody.Inertia
+		newBody.InvInertia = 1 / newBody.Inertia
 	} else {
 		newBody.InvMass = 0.0
 		newBody.InvInertia = 0.0
@@ -79,16 +79,16 @@ func CreateBodyRectangle(pos Vector, width, height, density float32, restitution
 	}
 	newBody.Area = height * width
 	newBody.Mass = newBody.Area * density
-	newBody.Inertia = newBody.CalculateRotationalInertia()
+	newBody.Inertia = newBody.Mass / 12 * (height*height + width*width)
 	if !newBody.IsStatic {
 		newBody.InvMass = 1 / newBody.Mass
-		newBody.InvInertia = 1/ newBody.Inertia
+		newBody.InvInertia = 1 / newBody.Inertia
 	} else {
 		newBody.InvMass = 0.0
 		newBody.InvInertia = 0.0
 	}
 
-	newBody.Vertices = CreateRectangleVertices(width, height)
+	newBody.vertices = CreateRectangleVertices(width, height)
 	newBody.transformUpdateRequired = true
 	newBody.aabbUpdateRequired = true
 	addBody(newBody)
@@ -113,19 +113,11 @@ func (b *Body) TransformVertices() {
 	if b.transformUpdateRequired {
 		transform := NewTransform(b.Position.X, b.Position.Y, b.Rotation)
 
-		for i := range b.Vertices {
-			b.TransformedVertices[i] = VectorTransform(b.Vertices[i], transform)
+		for i := range b.vertices {
+			b.TransformedVertices[i] = VectorTransform(b.vertices[i], transform)
 		}
 	}
 	b.transformUpdateRequired = false
-}
-
-func (b *Body) CalculateRotationalInertia() float32 {
-	if b.ShapeType == CircleShape {
-		return (b.Mass*b.Radius*b.Radius)/2
-	} else {
-		return b.Mass/12*(b.Height*b.Height + b.Width*b.Width)
-	}
 }
 
 func (b *Body) step(time float32, iteration int) {
@@ -134,7 +126,7 @@ func (b *Body) step(time float32, iteration int) {
 	}
 
 	time /= float32(iteration)
-	
+
 	acceleration := VectorMul(b.Force, b.InvMass)
 	b.Velocity.AddValue(VectorMul(gravity, time))
 	b.Velocity.AddValue(VectorMul(acceleration, time))
@@ -161,11 +153,15 @@ func (b *Body) Rotate(amount float32) {
 	b.Rotation += amount
 }
 
-func (b *Body) ApplyForce(amount Vector) {
-	b.Force.AddValue(amount)
+func (b *Body) RotateTo(amount float32) {
+	b.Rotation = amount
 }
 
-func (b *Body) GetAABB() AABB {
+func (b *Body) ApplyForce(amount Vector) {
+	b.Force = amount
+}
+
+func (b *Body) getAABB() AABB {
 	if b.aabbUpdateRequired {
 		minX := float32(math.MaxFloat32)
 		minY := float32(math.MaxFloat32)
