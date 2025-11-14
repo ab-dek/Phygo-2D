@@ -180,11 +180,6 @@ func findClosestPoint(point Vector, vertices []Vector) int {
 	return result
 }
 
-func findContactPoint(centerA, centerB Vector, radiusA float32) Vector {
-	dir := VectorNormalize(VectorSubtract(centerB, centerA))
-	return VectorAdd(centerA, VectorMul(dir, radiusA))
-}
-
 func findContactPoints(bodyA, bodyB Body) ([2]Vector, int) {
 	var contactPoints [2]Vector
 	var contactCount int = 0
@@ -194,16 +189,124 @@ func findContactPoints(bodyA, bodyB Body) ([2]Vector, int) {
 
 	if shapeA == RectangleShape {
 		if shapeB == RectangleShape {
+			contactPoints, contactCount = findContactPointsPolygons(bodyA.TransformedVertices[:], bodyB.TransformedVertices[:])
 		} else {
+			contactPoints[0] = findContactPointCirclePolygon(bodyB.Position, bodyA.TransformedVertices[:])
+			contactCount = 1
 		}
 	} else {
 		if shapeB == RectangleShape {
+			contactPoints[0] = findContactPointCirclePolygon(bodyA.Position, bodyB.TransformedVertices[:])
+			contactCount = 1
 		} else {
-			contactPoints[0] = findContactPoint(bodyA.Position, bodyB.Position, bodyA.Radius)
+			contactPoints[0] = findContactPointCircles(bodyA.Position, bodyB.Position, bodyA.Radius)
 			contactCount = 1
 		}
 	}
 	return contactPoints, contactCount
+}
+
+func findContactPointCircles(centerA, centerB Vector, radiusA float32) Vector {
+	dir := VectorNormalize(VectorSubtract(centerB, centerA))
+	return VectorAdd(centerA, VectorMul(dir, radiusA))
+}
+
+func findContactPointsPolygons(verticesA, verticesB []Vector) ([2]Vector, int) {
+	var contactPoints [2]Vector
+	contactCount := 0
+	minDist := float32(math.MaxFloat32)
+
+	for _, p := range verticesA {
+		for i := range verticesB {
+			j := 0
+			if i+1 < len(verticesB) {
+				j = i + 1
+			}
+
+			va := verticesB[i]
+			vb := verticesB[j]
+			distSqr, contact := pointSegmentDistance(p, va, vb)
+
+			if NearlyEqual(distSqr, minDist) {
+				if !VectorNearlyEqual(contactPoints[1], contact) {
+					contactCount = 2
+					contactPoints[1] = contact
+				}
+			} else if distSqr < minDist {
+				minDist = distSqr
+				contactCount = 1
+				contactPoints[0] = contact
+			}
+		}
+	}
+
+	for _, p := range verticesB {
+		for i := range verticesA {
+			j := 0
+			if i+1 < len(verticesA) {
+				j = i + 1
+			}
+
+			va := verticesA[i]
+			vb := verticesA[j]
+			distSqr, contact := pointSegmentDistance(p, va, vb)
+
+			if NearlyEqual(distSqr, minDist) {
+				if !VectorNearlyEqual(contactPoints[1], contact) {
+					contactCount = 2
+					contactPoints[1] = contact
+				}
+			} else if distSqr < minDist {
+				minDist = distSqr
+				contactCount = 1
+				contactPoints[0] = contact
+			}
+		}
+	}
+
+	return contactPoints, contactCount
+}
+
+func findContactPointCirclePolygon(circleCenter Vector, vertices []Vector) Vector {
+	minDist := float32(math.MaxFloat32)
+	var contactPoint Vector
+
+	for i := range vertices {
+		j := 0
+		if i+1 < len(vertices) {
+			j = i + 1
+		}
+
+		vertexA := vertices[i]
+		vertexB := vertices[j]
+		distSqr, contact := pointSegmentDistance(circleCenter, vertexA, vertexB)
+		if distSqr < minDist {
+			minDist = distSqr
+			contactPoint = contact
+		}
+	}
+	return contactPoint
+}
+
+func pointSegmentDistance(p, a, b Vector) (float32, Vector) {
+	var closestPoint Vector
+
+	ab := VectorSubtract(b, a)
+	ap := VectorSubtract(p, a)
+
+	proj := VectorDotProduct(ap, ab)
+	abLenSqr := VectorLenSqr(ab)
+	d := proj / abLenSqr
+
+	if d <= 0 {
+		closestPoint = a
+	} else if d >= 1 {
+		closestPoint = b
+	} else {
+		closestPoint = VectorAdd(a, VectorMul(ab, d))
+	}
+
+	return VectorDistSqr(p, closestPoint), closestPoint
 }
 
 func CheckCollisionAABBs(a, b AABB) bool {

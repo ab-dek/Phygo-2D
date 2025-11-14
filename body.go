@@ -23,6 +23,9 @@ type Body struct {
 	InvMass     float32
 	Restitution float32
 	Area        float32
+	Inertia     float32
+	InvInertia  float32
+
 	IsStatic    bool
 	ShapeType   ShapeType
 	// used for circle shapes
@@ -50,10 +53,13 @@ func CreateBodyCircle(pos Vector, radius, density float32, restitution float32, 
 
 	newBody.Area = radius * radius * math.Pi
 	newBody.Mass = newBody.Area * density
+	newBody.Inertia = newBody.CalculateRotationalInertia()
 	if !newBody.IsStatic {
 		newBody.InvMass = 1 / newBody.Mass
+		newBody.InvInertia = 1/ newBody.Inertia
 	} else {
 		newBody.InvMass = 0.0
+		newBody.InvInertia = 0.0
 	}
 	newBody.transformUpdateRequired = true
 	newBody.aabbUpdateRequired = true
@@ -73,10 +79,13 @@ func CreateBodyRectangle(pos Vector, width, height, density float32, restitution
 	}
 	newBody.Area = height * width
 	newBody.Mass = newBody.Area * density
+	newBody.Inertia = newBody.CalculateRotationalInertia()
 	if !newBody.IsStatic {
 		newBody.InvMass = 1 / newBody.Mass
+		newBody.InvInertia = 1/ newBody.Inertia
 	} else {
 		newBody.InvMass = 0.0
+		newBody.InvInertia = 0.0
 	}
 
 	newBody.Vertices = CreateRectangleVertices(width, height)
@@ -109,6 +118,14 @@ func (b *Body) TransformVertices() {
 		}
 	}
 	b.transformUpdateRequired = false
+}
+
+func (b *Body) CalculateRotationalInertia() float32 {
+	if b.ShapeType == CircleShape {
+		return (b.Mass*b.Radius*b.Radius)/2
+	} else {
+		return b.Mass/12*(b.Height*b.Height + b.Width*b.Width)
+	}
 }
 
 func (b *Body) step(time float32, iteration int) {

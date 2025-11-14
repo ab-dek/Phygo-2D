@@ -30,6 +30,11 @@ func VectorLenSqr(v Vector) float32 {
 	return v.X*v.X + v.Y*v.Y
 }
 
+// Returns the distance squared
+func VectorDistSqr(v1, v2 Vector) float32 {
+	return float32(float64((v1.X-v2.X)*(v1.X-v2.X) + (v1.Y-v2.Y)*(v1.Y-v2.Y)))
+}
+
 func VectorCrossProduct(v1, v2 Vector) float32 {
 	return v1.X*v2.Y - v1.Y*v2.X
 }
@@ -64,4 +69,12 @@ func ClampInt(value, min, max int) int {
 		return max 
 	}
 	return value
+}
+
+func NearlyEqual(a, b float32) bool {
+	return math.Abs(float64(a-b)) < 0.001 
+}
+
+func VectorNearlyEqual(a, b Vector) bool {
+	return NearlyEqual(a.X, b.X) && NearlyEqual(a.Y, b.Y)
 }
