@@ -127,7 +127,7 @@ func step(time float32, iteration int) {
 	}
 
 	for _, m := range manifolds[:manifoldCount] {
-		resolveCollision(m)
+		resolveCollisionWithRotation(m)
 	}
 }
 
@@ -148,6 +148,61 @@ func resolveCollision(manifold *Manifold) {
 
 	bodyA.Velocity.SubtractValue(VectorMul(normal, j*bodyA.InvMass))
 	bodyB.Velocity.AddValue(VectorMul(normal, j*bodyB.InvMass))
+}
+
+func resolveCollisionWithRotation(manifold *Manifold) {
+	bodyA := manifold.BodyA
+	bodyB := manifold.BodyB
+	normal := manifold.Normal
+	contactPoints := manifold.Contacts
+	contactCount := manifold.ContactCount
+
+	e := min(bodyA.Restitution, bodyB.Restitution)
+
+	var impulseList [2]Vector
+	var raList [2]Vector
+	var rbList [2]Vector
+
+	for i, p := range contactPoints[:contactCount] {
+		ra := VectorSubtract(p, bodyA.Position)
+		rb := VectorSubtract(p, bodyB.Position)
+
+		raList[i] = ra
+		rbList[i] = rb
+
+		raPerp := NewVector(-ra.Y, ra.X)
+		rbPerp := NewVector(-rb.Y, rb.X)
+
+		angularVelocityA := VectorMul(raPerp, bodyA.AngularVelocity)
+		angularVelocityB := VectorMul(rbPerp, bodyB.AngularVelocity)
+
+		relativeVelocity := VectorSubtract(VectorAdd(bodyB.Velocity, angularVelocityB), VectorAdd(bodyA.Velocity, angularVelocityA))
+		rvProj := VectorDotProduct(relativeVelocity, normal)
+
+		if rvProj > 0 {
+			continue
+		}
+
+		raPerpDotN := VectorDotProduct(raPerp, normal)
+		rbPerpDotN := VectorDotProduct(rbPerp, normal)
+
+		denom := bodyA.InvMass + bodyB.InvMass + raPerpDotN*raPerpDotN*bodyA.InvInertia + rbPerpDotN*rbPerpDotN*bodyB.InvInertia
+		j := -(1 + e) * rvProj
+		j /= denom 
+		j /= float32(contactCount)
+
+		impulseList[i] = VectorMul(normal, j)
+	}
+	
+	for i, imp := range impulseList[:contactCount] {
+		ra := raList[i]
+		rb := rbList[i]
+
+		bodyA.Velocity.AddValue(VectorMul(imp, -bodyA.InvMass))
+		bodyA.AngularVelocity += -VectorCrossProduct(ra, imp)*bodyA.InvInertia
+		bodyB.Velocity.AddValue(VectorMul(imp, bodyB.InvMass))
+		bodyB.AngularVelocity += VectorCrossProduct(rb, imp)*bodyB.InvInertia
+	}
 }
 
 func collide(bodyA, bodyB Body) (bool, float32, Vector) {

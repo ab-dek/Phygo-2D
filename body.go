@@ -26,8 +26,9 @@ type Body struct {
 	Inertia     float32
 	InvInertia  float32
 
-	IsStatic  bool
-	ShapeType ShapeType
+	IsStatic         bool
+	RotationDisabled bool
+	ShapeType        ShapeType
 	// used for circle shapes
 	Radius float32
 	// used for rectangle shapes
@@ -44,11 +45,12 @@ type Body struct {
 
 func CreateBodyCircle(pos Vector, radius, density float32, restitution float32, isStatic bool) *Body {
 	newBody := &Body{
-		Position:    pos,
-		Restitution: ClampFloat(restitution, 0, 1),
-		IsStatic:    isStatic,
-		ShapeType:   CircleShape,
-		Radius:      radius,
+		Position:         pos,
+		Restitution:      ClampFloat(restitution, 0, 1),
+		IsStatic:         isStatic,
+		RotationDisabled: false,
+		ShapeType:        CircleShape,
+		Radius:           radius,
 	}
 
 	newBody.Area = radius * radius * math.Pi
@@ -70,12 +72,13 @@ func CreateBodyCircle(pos Vector, radius, density float32, restitution float32, 
 
 func CreateBodyRectangle(pos Vector, width, height, density float32, restitution float32, isStatic bool) *Body {
 	newBody := &Body{
-		Position:    pos,
-		Restitution: ClampFloat(restitution, 0, 1),
-		IsStatic:    isStatic,
-		ShapeType:   RectangleShape,
-		Width:       width,
-		Height:      height,
+		Position:         pos,
+		Restitution:      ClampFloat(restitution, 0, 1),
+		IsStatic:         isStatic,
+		RotationDisabled: false,
+		ShapeType:        RectangleShape,
+		Width:            width,
+		Height:           height,
 	}
 	newBody.Area = height * width
 	newBody.Mass = newBody.Area * density
@@ -131,7 +134,9 @@ func (b *Body) step(time float32, iteration int) {
 	b.Velocity.AddValue(VectorMul(gravity, time))
 	b.Velocity.AddValue(VectorMul(acceleration, time))
 	b.Position.AddValue(VectorMul(b.Velocity, time))
-	b.Rotation += b.AngularVelocity * time
+	if !b.RotationDisabled {
+		b.Rotation += b.AngularVelocity * time
+	}
 
 	if b.Velocity.X != 0 || b.Velocity.Y != 0 {
 		b.transformUpdateRequired = true
