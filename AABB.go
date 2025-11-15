@@ -5,7 +5,7 @@ type AABB struct {
 	Max Vector
 }
 
-func NewAABB(minX, minY, maxX, maxY float32) AABB {
+func newAABB(minX, minY, maxX, maxY float32) AABB {
 	return AABB{
 		NewVector(minX, minY),
 		NewVector(maxX, maxY),

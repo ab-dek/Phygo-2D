@@ -18,13 +18,15 @@ type Body struct {
 	AngularVelocity float32
 	Force           Vector
 
-	Density     float32
-	Mass        float32
-	InvMass     float32
-	Restitution float32
-	Area        float32
-	Inertia     float32
-	InvInertia  float32
+	density         float32
+	mass            float32
+	invMass         float32
+	restitution     float32
+	area            float32
+	inertia         float32
+	invInertia      float32
+	staticFriction  float32
+	dynamicFriction float32
 
 	IsStatic         bool
 	RotationDisabled bool
@@ -43,25 +45,28 @@ type Body struct {
 	aabbUpdateRequired bool
 }
 
-func CreateBodyCircle(pos Vector, radius, density float32, restitution float32, isStatic bool) *Body {
+func CreateBodyCircle(pos Vector, radius, density float32, isStatic bool) *Body {
 	newBody := &Body{
 		Position:         pos,
-		Restitution:      ClampFloat(restitution, 0, 1),
+		density:          density,
+		restitution:      0.5,
+		staticFriction:   0.6,
+		dynamicFriction:  0.3,
 		IsStatic:         isStatic,
 		RotationDisabled: false,
 		ShapeType:        CircleShape,
 		Radius:           radius,
 	}
 
-	newBody.Area = radius * radius * math.Pi
-	newBody.Mass = newBody.Area * density
-	newBody.Inertia = (newBody.Mass * radius * radius) / 2
+	newBody.area = radius * radius * math.Pi
+	newBody.mass = newBody.area * density
+	newBody.inertia = (newBody.mass * radius * radius) / 2
 	if !newBody.IsStatic {
-		newBody.InvMass = 1 / newBody.Mass
-		newBody.InvInertia = 1 / newBody.Inertia
+		newBody.invMass = 1 / newBody.mass
+		newBody.invInertia = 1 / newBody.inertia
 	} else {
-		newBody.InvMass = 0.0
-		newBody.InvInertia = 0.0
+		newBody.invMass = 0.0
+		newBody.invInertia = 0.0
 	}
 	newBody.transformUpdateRequired = true
 	newBody.aabbUpdateRequired = true
@@ -73,25 +78,27 @@ func CreateBodyCircle(pos Vector, radius, density float32, restitution float32, 
 func CreateBodyRectangle(pos Vector, width, height, density float32, restitution float32, isStatic bool) *Body {
 	newBody := &Body{
 		Position:         pos,
-		Restitution:      ClampFloat(restitution, 0, 1),
+		restitution:      0.1,
+		staticFriction:   0.6,
+		dynamicFriction:  0.3,
 		IsStatic:         isStatic,
 		RotationDisabled: false,
 		ShapeType:        RectangleShape,
 		Width:            width,
 		Height:           height,
 	}
-	newBody.Area = height * width
-	newBody.Mass = newBody.Area * density
-	newBody.Inertia = newBody.Mass / 12 * (height*height + width*width)
+	newBody.area = height * width
+	newBody.mass = newBody.area * density
+	newBody.inertia = newBody.mass / 12 * (height*height + width*width)
 	if !newBody.IsStatic {
-		newBody.InvMass = 1 / newBody.Mass
-		newBody.InvInertia = 1 / newBody.Inertia
+		newBody.invMass = 1 / newBody.mass
+		newBody.invInertia = 1 / newBody.inertia
 	} else {
-		newBody.InvMass = 0.0
-		newBody.InvInertia = 0.0
+		newBody.invMass = 0.0
+		newBody.invInertia = 0.0
 	}
 
-	newBody.vertices = CreateRectangleVertices(width, height)
+	newBody.vertices = createRectangleVertices(width, height)
 	newBody.transformUpdateRequired = true
 	newBody.aabbUpdateRequired = true
 	addBody(newBody)
@@ -99,7 +106,7 @@ func CreateBodyRectangle(pos Vector, width, height, density float32, restitution
 	return newBody
 }
 
-func CreateRectangleVertices(width, height float32) [4]Vector {
+func createRectangleVertices(width, height float32) [4]Vector {
 	left := -width / 2
 	right := left + width
 	bottom := -height / 2
@@ -110,6 +117,18 @@ func CreateRectangleVertices(width, height float32) [4]Vector {
 		NewVector(right, bottom),
 		NewVector(left, bottom),
 	}
+}
+
+func (b *Body) SetRestitution(restitution float32) {
+	b.restitution = ClampFloat(restitution, minRestitution, maxRestitution)
+}
+
+func (b *Body) SetStaticFriction(sFriction float32) {
+	b.staticFriction = ClampFloat(sFriction, minFriction, maxFriction)
+}
+
+func (b *Body) SetDynamicFriction(dFriction float32) {
+	b.dynamicFriction = ClampFloat(dFriction, minFriction, maxFriction)
 }
 
 func (b *Body) TransformVertices() {
@@ -130,15 +149,15 @@ func (b *Body) step(time float32, iteration int) {
 
 	time /= float32(iteration)
 
-	acceleration := VectorMul(b.Force, b.InvMass)
-	b.Velocity.AddValue(VectorMul(gravity, time))
+	acceleration := VectorMul(b.Force, b.invMass)
 	b.Velocity.AddValue(VectorMul(acceleration, time))
+	b.Velocity.AddValue(VectorMul(gravity, time))
 	b.Position.AddValue(VectorMul(b.Velocity, time))
 	if !b.RotationDisabled {
 		b.Rotation += b.AngularVelocity * time
 	}
 
-	if b.Velocity.X != 0 || b.Velocity.Y != 0 {
+	if !VectorNearlyEqual(b.Velocity, VectorZero()) || NearlyEqual(b.Rotation, 0.0) {
 		b.transformUpdateRequired = true
 		b.aabbUpdateRequired = true
 	}
@@ -193,7 +212,7 @@ func (b *Body) getAABB() AABB {
 			maxX = b.Position.X + b.Radius
 			maxY = b.Position.Y + b.Radius
 		}
-		b.aabb = NewAABB(minX, minY, maxX, maxY)
+		b.aabb = newAABB(minX, minY, maxX, maxY)
 	}
 	b.aabbUpdateRequired = false
 	return b.aabb

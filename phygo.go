@@ -1,21 +1,56 @@
 package phygo
 
-// globals
-var (
-	bodies        [100]*Body
-	bodyCount     = 0 // number of bodies
-	gravity       = NewVector(0, 900)
-	manifolds     [1000]*Manifold
-	manifoldCount = 0
-
-	iterations = 32 // number of steps per frame
-)
+import "math"
 
 // constants
 const (
 	minIterations = 1
 	maxIterations = 64
+
+	minFriction    = 0
+	maxFriction    = 1
+	minRestitution = 0
+	maxRestitution = 1
+
+	maxBodies   = 300
+	maxManifold = 1000
 )
+
+// globals
+var (
+	bodies        [maxBodies]*Body
+	bodyCount     = 0 // number of bodies
+	gravity       = NewVector(0, 500)
+	manifolds     [maxManifold]*Manifold
+	manifoldCount = 0
+
+	iterations = 32 // number of steps per frame
+)
+
+func SetIteration(i int) {
+	iterations = ClampInt(i, minIterations, maxIterations)
+}
+
+func SetGravity(x, y float32) {
+	gravity.X = x
+	gravity.Y = y
+}
+
+func GetBody(index int) (bool, *Body) {
+	if index < 0 || index >= bodyCount {
+		return false, nil
+	}
+
+	return true, bodies[index]
+}
+
+func GetBodiesCount() int {
+	return bodyCount
+}
+
+func GetBodies() []*Body {
+	return bodies[:bodyCount]
+}
 
 func addBody(b *Body) {
 	bodies[bodyCount] = b
@@ -43,38 +78,9 @@ func RemoveBody(b *Body) {
 	bodyCount--
 }
 
-func GetBody(index int) (bool, *Body) {
-	if index < 0 || index >= bodyCount {
-		return false, nil
-	}
-
-	return true, bodies[index]
-}
-
-func GetBodiesCount() int {
-	return bodyCount
-}
-
-func GetBodies() []*Body {
-	return bodies[:bodyCount]
-}
-
-func createManifold(bodyA *Body, bodyB *Body, normal Vector, contacts [2]Vector, contactCount int) {
-	newManifold := &Manifold{
-		BodyA:        bodyA,
-		BodyB:        bodyB,
-		Normal:       normal,
-		Contacts:     contacts,
-		ContactCount: contactCount,
-	}
-	manifolds[manifoldCount] = newManifold
-	manifoldCount++
-}
-
 func UpdatePhysics(time float32) {
-	iteration := ClampInt(iterations, minIterations, maxIterations)
-	for i := 0; i < iteration; i++ {
-		step(time, iteration)
+	for i := 0; i < iterations; i++ {
+		step(time, iterations)
 	}
 }
 
@@ -105,11 +111,11 @@ func step(time float32, iteration int) {
 				continue
 			}
 
-			if !CheckCollisionAABBs(aabbA, aabbB) {
+			if !checkCollisionAABBs(aabbA, aabbB) {
 				continue
 			}
 
-			if ok, depth, normal := collide(*bodyA, *bodyB); ok {
+			if ok, depth, normal := checkCollision(*bodyA, *bodyB); ok {
 				if bodyA.IsStatic {
 					bodyB.Move(VectorMul(normal, depth))
 				} else if bodyB.IsStatic {
@@ -127,7 +133,7 @@ func step(time float32, iteration int) {
 	}
 
 	for _, m := range manifolds[:manifoldCount] {
-		resolveCollisionWithRotation(m)
+		resolveCollisionWithRotationAndFriction(m)
 	}
 }
 
@@ -142,12 +148,12 @@ func resolveCollision(manifold *Manifold) {
 		return
 	}
 
-	e := min(bodyA.Restitution, bodyB.Restitution)
+	e := min(bodyA.restitution, bodyB.restitution)
 	j := -(1 + e) * VectorDotProduct(relativeVelocity, normal)
-	j /= (bodyA.InvMass) + (bodyB.InvMass)
+	j /= (bodyA.invMass) + (bodyB.invMass)
 
-	bodyA.Velocity.SubtractValue(VectorMul(normal, j*bodyA.InvMass))
-	bodyB.Velocity.AddValue(VectorMul(normal, j*bodyB.InvMass))
+	bodyA.Velocity.SubtractValue(VectorMul(normal, j*bodyA.invMass))
+	bodyB.Velocity.AddValue(VectorMul(normal, j*bodyB.invMass))
 }
 
 func resolveCollisionWithRotation(manifold *Manifold) {
@@ -157,7 +163,7 @@ func resolveCollisionWithRotation(manifold *Manifold) {
 	contactPoints := manifold.Contacts
 	contactCount := manifold.ContactCount
 
-	e := min(bodyA.Restitution, bodyB.Restitution)
+	e := min(bodyA.restitution, bodyB.restitution)
 
 	var impulseList [2]Vector
 	var raList [2]Vector
@@ -186,43 +192,138 @@ func resolveCollisionWithRotation(manifold *Manifold) {
 		raPerpDotN := VectorDotProduct(raPerp, normal)
 		rbPerpDotN := VectorDotProduct(rbPerp, normal)
 
-		denom := bodyA.InvMass + bodyB.InvMass + raPerpDotN*raPerpDotN*bodyA.InvInertia + rbPerpDotN*rbPerpDotN*bodyB.InvInertia
+		denom := bodyA.invMass + bodyB.invMass + raPerpDotN*raPerpDotN*bodyA.invInertia + rbPerpDotN*rbPerpDotN*bodyB.invInertia
 		j := -(1 + e) * rvProj
-		j /= denom 
+		j /= denom
 		j /= float32(contactCount)
 
 		impulseList[i] = VectorMul(normal, j)
 	}
-	
+
 	for i, imp := range impulseList[:contactCount] {
 		ra := raList[i]
 		rb := rbList[i]
 
-		bodyA.Velocity.AddValue(VectorMul(imp, -bodyA.InvMass))
-		bodyA.AngularVelocity += -VectorCrossProduct(ra, imp)*bodyA.InvInertia
-		bodyB.Velocity.AddValue(VectorMul(imp, bodyB.InvMass))
-		bodyB.AngularVelocity += VectorCrossProduct(rb, imp)*bodyB.InvInertia
+		bodyA.Velocity.AddValue(VectorMul(imp, -bodyA.invMass))
+		bodyA.AngularVelocity += -VectorCrossProduct(ra, imp) * bodyA.invInertia
+		bodyB.Velocity.AddValue(VectorMul(imp, bodyB.invMass))
+		bodyB.AngularVelocity += VectorCrossProduct(rb, imp) * bodyB.invInertia
 	}
 }
 
-func collide(bodyA, bodyB Body) (bool, float32, Vector) {
-	shapeA := bodyA.ShapeType
-	shapeB := bodyB.ShapeType
+func resolveCollisionWithRotationAndFriction(manifold *Manifold) {
+	bodyA := manifold.BodyA
+	bodyB := manifold.BodyB
+	normal := manifold.Normal
+	contactPoints := manifold.Contacts
+	contactCount := manifold.ContactCount
 
-	if shapeA == RectangleShape {
-		if shapeB == RectangleShape {
-			return CheckCollisionPolygons(bodyA.TransformedVertices[:], bodyB.TransformedVertices[:], bodyA.Position, bodyB.Position)
-		} else {
-			c, d, n := CheckCollisionPolygonCircle(bodyB.Position, bodyA.Position, bodyB.Radius, bodyA.TransformedVertices[:])
-			n = VectorMul(n, -1)
-			return c, d, n
+	e := min(bodyA.restitution, bodyB.restitution)
+
+	var impulseList [2]Vector
+	var raList [2]Vector
+	var rbList [2]Vector
+
+	var jList [2]float32
+
+	for i, p := range contactPoints[:contactCount] {
+		ra := VectorSubtract(p, bodyA.Position)
+		rb := VectorSubtract(p, bodyB.Position)
+
+		raList[i] = ra
+		rbList[i] = rb
+
+		raPerp := NewVector(-ra.Y, ra.X)
+		rbPerp := NewVector(-rb.Y, rb.X)
+
+		angularVelocityA := VectorMul(raPerp, bodyA.AngularVelocity)
+		angularVelocityB := VectorMul(rbPerp, bodyB.AngularVelocity)
+
+		relativeVelocity := VectorSubtract(VectorAdd(bodyB.Velocity, angularVelocityB), VectorAdd(bodyA.Velocity, angularVelocityA))
+		rvProj := VectorDotProduct(relativeVelocity, normal)
+
+		if rvProj > 0 {
+			continue
 		}
-	} else {
-		if shapeB == RectangleShape {
-			return CheckCollisionPolygonCircle(bodyA.Position, bodyB.Position, bodyA.Radius, bodyB.TransformedVertices[:])
+
+		raPerpDotN := VectorDotProduct(raPerp, normal)
+		rbPerpDotN := VectorDotProduct(rbPerp, normal)
+
+		denom := bodyA.invMass + bodyB.invMass + raPerpDotN*raPerpDotN*bodyA.invInertia + rbPerpDotN*rbPerpDotN*bodyB.invInertia
+		j := -(1 + e) * rvProj
+		j /= denom
+		j /= float32(contactCount)
+
+		jList[i] = j
+
+		impulseList[i] = VectorMul(normal, j)
+	}
+
+	for i, imp := range impulseList[:contactCount] {
+		ra := raList[i]
+		rb := rbList[i]
+
+		bodyA.Velocity.AddValue(VectorMul(imp, -bodyA.invMass))
+		bodyA.AngularVelocity += -VectorCrossProduct(ra, imp) * bodyA.invInertia
+		bodyB.Velocity.AddValue(VectorMul(imp, bodyB.invMass))
+		bodyB.AngularVelocity += VectorCrossProduct(rb, imp) * bodyB.invInertia
+	}
+
+	// applying friction
+	var frictionImpulseList [2]Vector
+	sf := (bodyA.staticFriction + bodyB.staticFriction) / 2
+	df := (bodyA.dynamicFriction + bodyB.dynamicFriction) / 2
+
+	for i, p := range contactPoints[:contactCount] {
+		ra := VectorSubtract(p, bodyA.Position)
+		rb := VectorSubtract(p, bodyB.Position)
+
+		raList[i] = ra
+		rbList[i] = rb
+
+		raPerp := NewVector(-ra.Y, ra.X)
+		rbPerp := NewVector(-rb.Y, rb.X)
+
+		angularVelocityA := VectorMul(raPerp, bodyA.AngularVelocity)
+		angularVelocityB := VectorMul(rbPerp, bodyB.AngularVelocity)
+
+		relativeVelocity := VectorSubtract(VectorAdd(bodyB.Velocity, angularVelocityB), VectorAdd(bodyA.Velocity, angularVelocityA))
+		tangent := VectorSubtract(relativeVelocity, VectorMul(normal, VectorDotProduct(relativeVelocity, normal)))
+
+		if VectorNearlyEqual(tangent, VectorZero()) {
+			continue
 		} else {
-			return CheckCollisionCircle(bodyA.Position, bodyB.Position, bodyA.Radius, bodyB.Radius)
+			tangent = VectorNormalize(tangent)
 		}
+
+		raPerpDotT := VectorDotProduct(raPerp, tangent)
+		rbPerpDotT := VectorDotProduct(rbPerp, tangent)
+
+		denom := bodyA.invMass + bodyB.invMass + raPerpDotT*raPerpDotT*bodyA.invInertia + rbPerpDotT*rbPerpDotT*bodyB.invInertia
+		jt := -VectorDotProduct(relativeVelocity, tangent)
+		jt /= denom
+		jt /= float32(contactCount)
+
+		var friction Vector
+		j := jList[i]
+
+		if float32(math.Abs(float64(jt))) <= j*sf {
+			friction = VectorMul(tangent, jt)
+		} else {
+			friction = VectorMul(tangent, -j*df)
+		}
+
+		frictionImpulseList[i] = friction
+	}
+
+	for i, f := range frictionImpulseList[:contactCount] {
+		ra := raList[i]
+		rb := rbList[i]
+
+		bodyA.Velocity.AddValue(VectorMul(f, -bodyA.invMass))
+		bodyA.AngularVelocity += -VectorCrossProduct(ra, f) * bodyA.invInertia
+		bodyB.Velocity.AddValue(VectorMul(f, bodyB.invMass))
+		bodyB.AngularVelocity += VectorCrossProduct(rb, f) * bodyB.invInertia
 	}
 }
 

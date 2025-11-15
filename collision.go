@@ -2,7 +2,28 @@ package phygo
 
 import "math"
 
-func CheckCollisionPolygons(polygonA, polygonB []Vector, centerA, centerB Vector) (bool, float32, Vector) {
+func checkCollision(bodyA, bodyB Body) (bool, float32, Vector) {
+	shapeA := bodyA.ShapeType
+	shapeB := bodyB.ShapeType
+
+	if shapeA == RectangleShape {
+		if shapeB == RectangleShape {
+			return checkCollisionPolygons(bodyA.TransformedVertices[:], bodyB.TransformedVertices[:], bodyA.Position, bodyB.Position)
+		} else {
+			c, d, n := checkCollisionPolygonCircle(bodyB.Position, bodyA.Position, bodyB.Radius, bodyA.TransformedVertices[:])
+			n = VectorMul(n, -1)
+			return c, d, n
+		}
+	} else {
+		if shapeB == RectangleShape {
+			return checkCollisionPolygonCircle(bodyA.Position, bodyB.Position, bodyA.Radius, bodyB.TransformedVertices[:])
+		} else {
+			return checkCollisionCircle(bodyA.Position, bodyB.Position, bodyA.Radius, bodyB.Radius)
+		}
+	}
+}
+
+func checkCollisionPolygons(polygonA, polygonB []Vector, centerA, centerB Vector) (bool, float32, Vector) {
 	var depth = float32(math.MaxFloat32)
 	var normal Vector
 
@@ -83,7 +104,7 @@ func projectVertices(vertices []Vector, axis Vector) (float32, float32) {
 	return min, max
 }
 
-func CheckCollisionCircle(centerA, centerB Vector, radiusA, radiusB float32) (bool, float32, Vector) {
+func checkCollisionCircle(centerA, centerB Vector, radiusA, radiusB float32) (bool, float32, Vector) {
 	normal := VectorSubtract(centerB, centerA)
 	dist := VectorLen(normal)
 	radii := radiusA + radiusB
@@ -94,7 +115,7 @@ func CheckCollisionCircle(centerA, centerB Vector, radiusA, radiusB float32) (bo
 	return true, radii - dist, VectorNormalize(normal)
 }
 
-func CheckCollisionPolygonCircle(circleCenter, polygonCenter Vector, radius float32, polygon []Vector) (bool, float32, Vector) {
+func checkCollisionPolygonCircle(circleCenter, polygonCenter Vector, radius float32, polygon []Vector) (bool, float32, Vector) {
 	var depth = float32(math.MaxFloat32)
 	var normal Vector
 
@@ -309,7 +330,7 @@ func pointSegmentDistance(p, a, b Vector) (float32, Vector) {
 	return VectorDistSqr(p, closestPoint), closestPoint
 }
 
-func CheckCollisionAABBs(a, b AABB) bool {
+func checkCollisionAABBs(a, b AABB) bool {
 	if a.Max.X <= b.Min.X || b.Max.X <= a.Min.X ||
 		a.Max.Y <= b.Min.Y || b.Max.Y <= a.Min.Y {
 		return false
