@@ -20,7 +20,7 @@ const (
 var (
 	bodies        [maxBodies]*Body
 	bodyCount     = 0 // number of bodies
-	gravity       = NewVector(0, 500)
+	gravity       = NewVector(0, 500) // TODO: unit conversion(pixels to meter)
 	manifolds     [maxManifold]*Manifold
 	manifoldCount = 0
 
@@ -115,25 +115,15 @@ func step(time float32, iteration int) {
 				continue
 			}
 
-			if ok, depth, normal := checkCollision(*bodyA, *bodyB); ok {
-				if bodyA.IsStatic {
-					bodyB.Move(VectorMul(normal, depth))
-				} else if bodyB.IsStatic {
-					bodyA.Move(VectorMul(normal, -depth))
-				} else {
-					bodyA.Move(VectorMul(normal, -depth/2))
-					bodyB.Move(VectorMul(normal, depth/2))
-				}
-
+			if ok, depth, normal := checkCollision(bodyA, bodyB); ok {
 				cntPoints, cntCount := findContactPoints(*bodyA, *bodyB)
-				createManifold(bodyA, bodyB, normal, cntPoints, cntCount)
-
+				createManifold(bodyA, bodyB, normal, depth, cntPoints, cntCount)
 			}
 		}
 	}
 
 	for _, m := range manifolds[:manifoldCount] {
-		resolveCollisionWithRotationAndFriction(m)
+		resolveCollision(m)
 	}
 }
 
@@ -141,84 +131,30 @@ func resolveCollision(manifold *Manifold) {
 	bodyA := manifold.BodyA
 	bodyB := manifold.BodyB
 	normal := manifold.Normal
-
-	relativeVelocity := VectorSubtract(bodyB.Velocity, bodyA.Velocity)
-
-	if VectorDotProduct(relativeVelocity, normal) > 0 {
-		return
-	}
-
-	e := min(bodyA.restitution, bodyB.restitution)
-	j := -(1 + e) * VectorDotProduct(relativeVelocity, normal)
-	j /= (bodyA.invMass) + (bodyB.invMass)
-
-	bodyA.Velocity.SubtractValue(VectorMul(normal, j*bodyA.invMass))
-	bodyB.Velocity.AddValue(VectorMul(normal, j*bodyB.invMass))
-}
-
-func resolveCollisionWithRotation(manifold *Manifold) {
-	bodyA := manifold.BodyA
-	bodyB := manifold.BodyB
-	normal := manifold.Normal
 	contactPoints := manifold.Contacts
 	contactCount := manifold.ContactCount
+	depth := manifold.Depth
 
-	e := min(bodyA.restitution, bodyB.restitution)
-
-	var impulseList [2]Vector
-	var raList [2]Vector
-	var rbList [2]Vector
-
-	for i, p := range contactPoints[:contactCount] {
-		ra := VectorSubtract(p, bodyA.Position)
-		rb := VectorSubtract(p, bodyB.Position)
-
-		raList[i] = ra
-		rbList[i] = rb
-
-		raPerp := NewVector(-ra.Y, ra.X)
-		rbPerp := NewVector(-rb.Y, rb.X)
-
-		angularVelocityA := VectorMul(raPerp, bodyA.AngularVelocity)
-		angularVelocityB := VectorMul(rbPerp, bodyB.AngularVelocity)
-
-		relativeVelocity := VectorSubtract(VectorAdd(bodyB.Velocity, angularVelocityB), VectorAdd(bodyA.Velocity, angularVelocityA))
-		rvProj := VectorDotProduct(relativeVelocity, normal)
-
-		if rvProj > 0 {
-			continue
-		}
-
-		raPerpDotN := VectorDotProduct(raPerp, normal)
-		rbPerpDotN := VectorDotProduct(rbPerp, normal)
-
-		denom := bodyA.invMass + bodyB.invMass + raPerpDotN*raPerpDotN*bodyA.invInertia + rbPerpDotN*rbPerpDotN*bodyB.invInertia
-		j := -(1 + e) * rvProj
-		j /= denom
-		j /= float32(contactCount)
-
-		impulseList[i] = VectorMul(normal, j)
+	if !bodyA.IsOnGround {
+		bodyA.IsOnGround = manifold.Normal.Y > 0
 	}
 
-	for i, imp := range impulseList[:contactCount] {
-		ra := raList[i]
-		rb := rbList[i]
-
-		bodyA.Velocity.AddValue(VectorMul(imp, -bodyA.invMass))
-		bodyA.AngularVelocity += -VectorCrossProduct(ra, imp) * bodyA.invInertia
-		bodyB.Velocity.AddValue(VectorMul(imp, bodyB.invMass))
-		bodyB.AngularVelocity += VectorCrossProduct(rb, imp) * bodyB.invInertia
+	if !bodyB.IsOnGround {
+		bodyB.IsOnGround = manifold.Normal.Y < 0
 	}
-}
 
-func resolveCollisionWithRotationAndFriction(manifold *Manifold) {
-	bodyA := manifold.BodyA
-	bodyB := manifold.BodyB
-	normal := manifold.Normal
-	contactPoints := manifold.Contacts
-	contactCount := manifold.ContactCount
+	// separating overlapping bodies
+	if bodyA.IsStatic {
+		bodyB.Move(VectorMul(normal, depth))
+	} else if bodyB.IsStatic {
+		bodyA.Move(VectorMul(normal, -depth))
+	} else {
+		bodyA.Move(VectorMul(normal, -depth/2))
+		bodyB.Move(VectorMul(normal, depth/2))
+	}
 
-	e := min(bodyA.restitution, bodyB.restitution)
+	// applying impulse
+	e := (bodyA.restitution+bodyB.restitution)/2
 
 	var impulseList [2]Vector
 	var raList [2]Vector
@@ -264,9 +200,13 @@ func resolveCollisionWithRotationAndFriction(manifold *Manifold) {
 		rb := rbList[i]
 
 		bodyA.Velocity.AddValue(VectorMul(imp, -bodyA.invMass))
-		bodyA.AngularVelocity += -VectorCrossProduct(ra, imp) * bodyA.invInertia
+		if !bodyA.RotationDisabled { 
+			bodyA.AngularVelocity += -VectorCrossProduct(ra, imp) * bodyA.invInertia
+		}
 		bodyB.Velocity.AddValue(VectorMul(imp, bodyB.invMass))
-		bodyB.AngularVelocity += VectorCrossProduct(rb, imp) * bodyB.invInertia
+		if !bodyB.RotationDisabled { 
+			bodyB.AngularVelocity += VectorCrossProduct(rb, imp) * bodyB.invInertia
+		} 
 	}
 
 	// applying friction
@@ -321,9 +261,13 @@ func resolveCollisionWithRotationAndFriction(manifold *Manifold) {
 		rb := rbList[i]
 
 		bodyA.Velocity.AddValue(VectorMul(f, -bodyA.invMass))
-		bodyA.AngularVelocity += -VectorCrossProduct(ra, f) * bodyA.invInertia
+		if !bodyA.RotationDisabled { 
+			bodyA.AngularVelocity += -VectorCrossProduct(ra, f) * bodyA.invInertia
+		}
 		bodyB.Velocity.AddValue(VectorMul(f, bodyB.invMass))
-		bodyB.AngularVelocity += VectorCrossProduct(rb, f) * bodyB.invInertia
+		if !bodyB.RotationDisabled {
+			bodyB.AngularVelocity += VectorCrossProduct(rb, f) * bodyB.invInertia
+		}
 	}
 }
 

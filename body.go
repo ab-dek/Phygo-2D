@@ -18,7 +18,6 @@ type Body struct {
 	AngularVelocity float32
 	Force           Vector
 
-	density         float32
 	mass            float32
 	invMass         float32
 	restitution     float32
@@ -30,6 +29,7 @@ type Body struct {
 
 	IsStatic         bool
 	RotationDisabled bool
+	IsOnGround       bool
 	ShapeType        ShapeType
 	// used for circle shapes
 	Radius float32
@@ -48,11 +48,11 @@ type Body struct {
 func CreateBodyCircle(pos Vector, radius, density float32, isStatic bool) *Body {
 	newBody := &Body{
 		Position:         pos,
-		density:          density,
 		restitution:      0.5,
 		staticFriction:   0.6,
 		dynamicFriction:  0.3,
 		IsStatic:         isStatic,
+		IsOnGround:       false,
 		RotationDisabled: false,
 		ShapeType:        CircleShape,
 		Radius:           radius,
@@ -75,13 +75,14 @@ func CreateBodyCircle(pos Vector, radius, density float32, isStatic bool) *Body 
 	return newBody
 }
 
-func CreateBodyRectangle(pos Vector, width, height, density float32, restitution float32, isStatic bool) *Body {
+func CreateBodyRectangle(pos Vector, width, height, density float32, isStatic bool) *Body {
 	newBody := &Body{
 		Position:         pos,
 		restitution:      0.1,
 		staticFriction:   0.6,
 		dynamicFriction:  0.3,
 		IsStatic:         isStatic,
+		IsOnGround:       false,
 		RotationDisabled: false,
 		ShapeType:        RectangleShape,
 		Width:            width,
@@ -148,6 +149,8 @@ func (b *Body) step(time float32, iteration int) {
 	}
 
 	time /= float32(iteration)
+
+	b.IsOnGround = false
 
 	acceleration := VectorMul(b.Force, b.invMass)
 	b.Velocity.AddValue(VectorMul(acceleration, time))

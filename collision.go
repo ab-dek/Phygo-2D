@@ -2,7 +2,7 @@ package phygo
 
 import "math"
 
-func checkCollision(bodyA, bodyB Body) (bool, float32, Vector) {
+func checkCollision(bodyA, bodyB *Body) (bool, float32, Vector) {
 	shapeA := bodyA.ShapeType
 	shapeB := bodyB.ShapeType
 
