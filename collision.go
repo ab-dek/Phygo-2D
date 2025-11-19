@@ -8,17 +8,17 @@ func checkCollision(bodyA, bodyB *Body) (bool, float32, Vector) {
 
 	if shapeA == RectangleShape {
 		if shapeB == RectangleShape {
-			return checkCollisionPolygons(bodyA.TransformedVertices[:], bodyB.TransformedVertices[:], bodyA.Position, bodyB.Position)
+			return checkCollisionPolygons(bodyA.vertices[:], bodyB.vertices[:], bodyA.position, bodyB.position)
 		} else {
-			c, d, n := checkCollisionPolygonCircle(bodyB.Position, bodyA.Position, bodyB.Radius, bodyA.TransformedVertices[:])
+			c, d, n := checkCollisionPolygonCircle(bodyB.position, bodyA.position, bodyB.radius, bodyA.vertices[:])
 			n = VectorMul(n, -1)
 			return c, d, n
 		}
 	} else {
 		if shapeB == RectangleShape {
-			return checkCollisionPolygonCircle(bodyA.Position, bodyB.Position, bodyA.Radius, bodyB.TransformedVertices[:])
+			return checkCollisionPolygonCircle(bodyA.position, bodyB.position, bodyA.radius, bodyB.vertices[:])
 		} else {
-			return checkCollisionCircle(bodyA.Position, bodyB.Position, bodyA.Radius, bodyB.Radius)
+			return checkCollisionCircle(bodyA.position, bodyB.position, bodyA.radius, bodyB.radius)
 		}
 	}
 }
@@ -28,12 +28,8 @@ func checkCollisionPolygons(polygonA, polygonB []Vector, centerA, centerB Vector
 	var normal Vector
 
 	for i := 0; i < len(polygonA); i++ {
-		j := 0
-		if i+1 < len(polygonA) {
-			j = i + 1
-		}
 		vertex1 := polygonA[i]
-		vertex2 := polygonA[j]
+		vertex2 := polygonA[(i + 1) % len(polygonA)]
 
 		edge := VectorSubtract(vertex2, vertex1)
 		axis := NewVector(-edge.Y, edge.X)
@@ -55,12 +51,8 @@ func checkCollisionPolygons(polygonA, polygonB []Vector, centerA, centerB Vector
 	}
 
 	for i := 0; i < len(polygonB); i++ {
-		j := 0
-		if i+1 < len(polygonB) {
-			j = i + 1
-		}
 		vertex1 := polygonB[i]
-		vertex2 := polygonB[j]
+		vertex2 := polygonB[(i + 1) % len(polygonB)]
 
 		edge := VectorSubtract(vertex2, vertex1)
 		axis := NewVector(-edge.Y, edge.X)
@@ -120,12 +112,8 @@ func checkCollisionPolygonCircle(circleCenter, polygonCenter Vector, radius floa
 	var normal Vector
 
 	for i := 0; i < len(polygon); i++ {
-		j := 0
-		if i+1 < len(polygon) {
-			j = i + 1
-		}
 		vertex1 := polygon[i]
-		vertex2 := polygon[j]
+		vertex2 := polygon[(i + 1) % len(polygon)]
 
 		edge := VectorSubtract(vertex2, vertex1)
 		axis := NewVector(-edge.Y, edge.X)
@@ -210,17 +198,17 @@ func findContactPoints(bodyA, bodyB Body) ([2]Vector, int) {
 
 	if shapeA == RectangleShape {
 		if shapeB == RectangleShape {
-			contactPoints, contactCount = findContactPointsPolygons(bodyA.TransformedVertices[:], bodyB.TransformedVertices[:])
+			contactPoints, contactCount = findContactPointsPolygons(bodyA.vertices[:], bodyB.vertices[:])
 		} else {
-			contactPoints[0] = findContactPointCirclePolygon(bodyB.Position, bodyA.TransformedVertices[:])
+			contactPoints[0] = findContactPointCirclePolygon(bodyB.position, bodyA.vertices[:])
 			contactCount = 1
 		}
 	} else {
 		if shapeB == RectangleShape {
-			contactPoints[0] = findContactPointCirclePolygon(bodyA.Position, bodyB.TransformedVertices[:])
+			contactPoints[0] = findContactPointCirclePolygon(bodyA.position, bodyB.vertices[:])
 			contactCount = 1
 		} else {
-			contactPoints[0] = findContactPointCircles(bodyA.Position, bodyB.Position, bodyA.Radius)
+			contactPoints[0] = findContactPointCircles(bodyA.position, bodyB.position, bodyA.radius)
 			contactCount = 1
 		}
 	}
@@ -239,13 +227,8 @@ func findContactPointsPolygons(verticesA, verticesB []Vector) ([2]Vector, int) {
 
 	for _, p := range verticesA {
 		for i := range verticesB {
-			j := 0
-			if i+1 < len(verticesB) {
-				j = i + 1
-			}
-
 			va := verticesB[i]
-			vb := verticesB[j]
+			vb := verticesB[(i + 1) % len(verticesB)]
 			distSqr, contact := pointSegmentDistance(p, va, vb)
 
 			if NearlyEqual(distSqr, minDist) {
@@ -263,13 +246,8 @@ func findContactPointsPolygons(verticesA, verticesB []Vector) ([2]Vector, int) {
 
 	for _, p := range verticesB {
 		for i := range verticesA {
-			j := 0
-			if i+1 < len(verticesA) {
-				j = i + 1
-			}
-
 			va := verticesA[i]
-			vb := verticesA[j]
+			vb := verticesA[(i + 1) % len(verticesA)]
 			distSqr, contact := pointSegmentDistance(p, va, vb)
 
 			if NearlyEqual(distSqr, minDist) {
@@ -293,13 +271,8 @@ func findContactPointCirclePolygon(circleCenter Vector, vertices []Vector) Vecto
 	var contactPoint Vector
 
 	for i := range vertices {
-		j := 0
-		if i+1 < len(vertices) {
-			j = i + 1
-		}
-
 		vertexA := vertices[i]
-		vertexB := vertices[j]
+		vertexB := vertices[(i + 1) % len(vertices)]
 		distSqr, contact := pointSegmentDistance(circleCenter, vertexA, vertexB)
 		if distSqr < minDist {
 			minDist = distSqr

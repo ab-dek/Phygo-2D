@@ -12,7 +12,7 @@ const (
 type Body struct {
 	Id int
 
-	Position        Vector
+	position        Vector
 	Velocity        Vector
 	Rotation        float32
 	AngularVelocity float32
@@ -32,13 +32,13 @@ type Body struct {
 	IsOnGround       bool
 	ShapeType        ShapeType
 	// used for circle shapes
-	Radius float32
+	radius float32
 	// used for rectangle shapes
-	Width  float32
-	Height float32
+	width  float32
+	height float32
 
-	vertices                [4]Vector // centered at position (0, 0)
-	TransformedVertices     [4]Vector
+	verticesAtOrigin        [4]Vector // centered at position (0, 0)
+	vertices                [4]Vector
 	transformUpdateRequired bool
 
 	aabb               AABB
@@ -46,16 +46,18 @@ type Body struct {
 }
 
 func CreateBodyCircle(pos Vector, radius, density float32, isStatic bool) *Body {
+	radius /= ppu
+
 	newBody := &Body{
-		Position:         pos,
-		restitution:      0.5,
+		position:         NewVector(pos.X/ppu, pos.Y/ppu),
+		restitution:      0.0,
 		staticFriction:   0.6,
 		dynamicFriction:  0.3,
 		IsStatic:         isStatic,
 		IsOnGround:       false,
 		RotationDisabled: false,
 		ShapeType:        CircleShape,
-		Radius:           radius,
+		radius:           radius,
 	}
 
 	newBody.area = radius * radius * math.Pi
@@ -76,17 +78,20 @@ func CreateBodyCircle(pos Vector, radius, density float32, isStatic bool) *Body 
 }
 
 func CreateBodyRectangle(pos Vector, width, height, density float32, isStatic bool) *Body {
+	width /= ppu
+	height /= ppu
+
 	newBody := &Body{
-		Position:         pos,
-		restitution:      0.1,
+		position:         NewVector(pos.X/ppu, pos.Y/ppu),
+		restitution:      0.0,
 		staticFriction:   0.6,
 		dynamicFriction:  0.3,
 		IsStatic:         isStatic,
 		IsOnGround:       false,
 		RotationDisabled: false,
 		ShapeType:        RectangleShape,
-		Width:            width,
-		Height:           height,
+		width:            width,
+		height:           height,
 	}
 	newBody.area = height * width
 	newBody.mass = newBody.area * density
@@ -99,7 +104,7 @@ func CreateBodyRectangle(pos Vector, width, height, density float32, isStatic bo
 		newBody.invInertia = 0.0
 	}
 
-	newBody.vertices = createRectangleVertices(width, height)
+	newBody.verticesAtOrigin = createRectangleVertices(width, height)
 	newBody.transformUpdateRequired = true
 	newBody.aabbUpdateRequired = true
 	addBody(newBody)
@@ -134,10 +139,10 @@ func (b *Body) SetDynamicFriction(dFriction float32) {
 
 func (b *Body) TransformVertices() {
 	if b.transformUpdateRequired {
-		transform := NewTransform(b.Position.X, b.Position.Y, b.Rotation)
+		transform := NewTransform(b.position.X, b.position.Y, b.Rotation)
 
-		for i := range b.vertices {
-			b.TransformedVertices[i] = VectorTransform(b.vertices[i], transform)
+		for i := range b.verticesAtOrigin {
+			b.vertices[i] = VectorTransform(b.verticesAtOrigin[i], transform)
 		}
 	}
 	b.transformUpdateRequired = false
@@ -155,12 +160,12 @@ func (b *Body) step(time float32, iteration int) {
 	acceleration := VectorMul(b.Force, b.invMass)
 	b.Velocity.AddValue(VectorMul(acceleration, time))
 	b.Velocity.AddValue(VectorMul(gravity, time))
-	b.Position.AddValue(VectorMul(b.Velocity, time))
+	b.position.AddValue(VectorMul(b.Velocity, ppu*time))
 	if !b.RotationDisabled {
-		b.Rotation += b.AngularVelocity * time
+		b.Rotation += b.AngularVelocity * ppu * time
 	}
 
-	if !VectorNearlyEqual(b.Velocity, VectorZero()) || NearlyEqual(b.Rotation, 0.0) {
+	if !VectorNearlyEqual(b.Velocity, VectorZero()) || !NearlyEqual(b.Rotation, 0.0) {
 		b.transformUpdateRequired = true
 		b.aabbUpdateRequired = true
 	}
@@ -169,11 +174,11 @@ func (b *Body) step(time float32, iteration int) {
 }
 
 func (b *Body) Move(deltaPos Vector) {
-	b.Position.AddValue(deltaPos)
+	b.position.AddValue(deltaPos)
 }
 
 func (b *Body) MoveTo(newPos Vector) {
-	b.Position = newPos
+	b.position = newPos
 }
 
 func (b *Body) Rotate(amount float32) {
@@ -195,7 +200,7 @@ func (b *Body) getAABB() AABB {
 		maxX := float32(math.SmallestNonzeroFloat32)
 		maxY := float32(math.SmallestNonzeroFloat32)
 		if b.ShapeType == RectangleShape {
-			for _, v := range b.TransformedVertices {
+			for _, v := range b.vertices {
 				if v.X < minX {
 					minX = v.X
 				}
@@ -210,13 +215,37 @@ func (b *Body) getAABB() AABB {
 				}
 			}
 		} else {
-			minX = b.Position.X - b.Radius
-			minY = b.Position.Y - b.Radius
-			maxX = b.Position.X + b.Radius
-			maxY = b.Position.Y + b.Radius
+			minX = b.position.X - b.radius
+			minY = b.position.Y - b.radius
+			maxX = b.position.X + b.radius
+			maxY = b.position.Y + b.radius
 		}
 		b.aabb = newAABB(minX, minY, maxX, maxY)
 	}
 	b.aabbUpdateRequired = false
 	return b.aabb
+}
+
+func (b *Body) GetPos() Vector {
+	return VectorMul(b.position, ppu)
+}
+
+func (b *Body) GetVertices() [4]Vector {
+	var verts [4]Vector
+	for i, v := range b.vertices {
+		verts[i] = VectorMul(v, ppu)
+	}
+	return verts
+}
+
+func (b *Body) GetRadius() float32 {
+	return b.radius*ppu
+}
+
+func (b *Body) GetWidth() float32 {
+	return b.width*ppu
+}
+
+func (b *Body) GetHeight() float32 {
+	return b.height*ppu
 }

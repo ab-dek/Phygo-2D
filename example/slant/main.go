@@ -12,17 +12,20 @@ func main() {
 	screenWidth := int32(800)
 	screenHeight := int32(450)
 
+	rl.SetConfigFlags(rl.FlagMsaa4xHint)
 	rl.InitWindow(screenWidth, screenHeight, "Phygo example")
 	defer rl.CloseWindow()
 	defer phygo.Close()
 
 	rl.SetTargetFPS(60)
+	phygo.SetGravity(0, 0.4)
 
 	for i := 0; i < 30; i++ {
 		if i % 2 == 0 {
-			phygo.CreateBodyRectangle(phygo.NewVector(rand.Float32()*float32(screenWidth), -rand.Float32()*float32(screenHeight-50)), 30, 30, 0.5, false)
+			phygo.CreateBodyRectangle(phygo.NewVector(rand.Float32()*float32(screenWidth), -rand.Float32()*float32(screenHeight-50)), float32(rand.Intn(40)+10), float32(rand.Intn(40)+10), 5, false)
 		} else {
-			phygo.CreateBodyCircle(phygo.NewVector(rand.Float32()*float32(screenWidth), -rand.Float32()*float32(screenHeight-50)), 20, 0.1, false)
+			c := phygo.CreateBodyCircle(phygo.NewVector(rand.Float32()*float32(screenWidth), -rand.Float32()*float32(screenHeight-50)), float32(rand.Intn(20)+10), 5, false)
+			c.SetRestitution(0.5)
 		}
 	}
 	
@@ -47,17 +50,13 @@ func main() {
 
 		for _, b := range phygo.GetBodies() {
 			if b.ShapeType == phygo.RectangleShape {
-				for i := range b.TransformedVertices {
-					j := 0
-					vertexA := b.TransformedVertices[i]
-					if i+1 < 4 {
-						j = i + 1
-					}
-					vertexB := b.TransformedVertices[j]
+				for i := range b.GetVertices() {
+					vertexA := b.GetVertices()[i]
+					vertexB := b.GetVertices()[(i + 1) % len(b.GetVertices())]
 					rl.DrawLineV(rl.NewVector2(vertexA.X, vertexA.Y), rl.NewVector2(vertexB.X, vertexB.Y), rl.White)
 				}
 			} else {
-				rl.DrawCircleLines(int32(b.Position.X), int32(b.Position.Y), b.Radius, rl.White)
+				rl.DrawCircleLines(int32(b.GetPos().X), int32(b.GetPos().Y), b.GetRadius(), rl.White)
 			}
 		}
 

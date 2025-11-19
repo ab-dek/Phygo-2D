@@ -72,9 +72,9 @@ func ClampInt(value, min, max int) int {
 }
 
 func NearlyEqual(a, b float32) bool {
-	return math.Abs(float64(a-b)) < 0.001 
+	return math.Abs(float64(a-b)) < 0.000001 
 }
 
 func VectorNearlyEqual(a, b Vector) bool {
-	return VectorDistSqr(a, b) < 0.001*0.001
+	return VectorDistSqr(a, b) < 0.000001*0.000001
 }

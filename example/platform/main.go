@@ -1,8 +1,8 @@
 package main
 
 import (
-	
 	"github.com/ab-dek/phygo2d/phygo"
+
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
 
@@ -14,10 +14,14 @@ func main() {
 	defer rl.CloseWindow()
 	defer phygo.Close()
 
-	rl.SetTargetFPS(60)
-	
-	phygo.SetGravity(0, 2000)
+	phygo.SetGravity(0, 2)
 
+	rl.SetTargetFPS(60)
+
+	player := phygo.CreateBodyRectangle(phygo.NewVector(float32(screenWidth)/2, 0), 45, 45, 1, false)
+	player.RotationDisabled = true
+	player.SetDynamicFriction(0.8)
+	
 	// ground body
 	phygo.CreateBodyRectangle(phygo.NewVector(float32(screenWidth)/2, float32(screenHeight)-25), float32(screenWidth), 50, 1, true)
 	
@@ -29,19 +33,16 @@ func main() {
 	phygo.CreateBodyRectangle(phygo.NewVector(float32(screenWidth*2/3), float32(screenHeight/3)), float32(screenWidth)/3, 10, 1, true)
 	phygo.CreateBodyRectangle(phygo.NewVector(float32(screenWidth/3), float32(screenHeight*2/3)), float32(screenWidth)/3, 10, 1, true)
 	
-	player := phygo.CreateBodyRectangle(phygo.NewVector(float32(screenWidth)/2, 0), 45, 45, 1, false)
-	player.RotationDisabled = true
-	player.SetDynamicFriction(0.8)
 	for !rl.WindowShouldClose() {
 		phygo.UpdatePhysics(rl.GetFrameTime())
 
 		if rl.IsKeyDown(rl.KeyLeft) {
-			player.Velocity.X = -300
+			player.Velocity.X = -0.15
 		} else if rl.IsKeyDown(rl.KeyRight) {
-			player.Velocity.X = 300
+			player.Velocity.X = 0.15
 		}
 		if rl.IsKeyPressed(rl.KeyUp) && player.IsOnGround {
-			player.Velocity.Y = -830
+			player.Velocity.Y = -0.55
 		}
 
 		rl.BeginDrawing()
@@ -49,17 +50,13 @@ func main() {
 
 		for _, b := range phygo.GetBodies() {
 			if b.ShapeType == phygo.RectangleShape {
-				for i := range b.TransformedVertices {
-					j := 0
-					vertexA := b.TransformedVertices[i]
-					if i+1 < 4 {
-						j = i + 1
-					}
-					vertexB := b.TransformedVertices[j]
+				for i := range b.GetVertices() {
+					vertexA := b.GetVertices()[i]
+					vertexB := b.GetVertices()[(i + 1) % len(b.GetVertices())]
 					rl.DrawLineV(rl.NewVector2(vertexA.X, vertexA.Y), rl.NewVector2(vertexB.X, vertexB.Y), rl.White)
 				}
 			} else {
-				rl.DrawCircleLines(int32(b.Position.X), int32(b.Position.Y), b.Radius, rl.White)
+				rl.DrawCircleLines(int32(b.GetPos().X), int32(b.GetPos().Y), b.GetRadius(), rl.White)
 			}
 		}
 

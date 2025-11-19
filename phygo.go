@@ -12,6 +12,8 @@ const (
 	minRestitution = 0
 	maxRestitution = 1
 
+	ppu = 50 // pixels per unit
+
 	maxBodies   = 300
 	maxManifold = 1000
 )
@@ -20,7 +22,7 @@ const (
 var (
 	bodies        [maxBodies]*Body
 	bodyCount     = 0 // number of bodies
-	gravity       = NewVector(0, 500) // TODO: unit conversion(pixels to meter)
+	gravity       = NewVector(0, 1)
 	manifolds     [maxManifold]*Manifold
 	manifoldCount = 0
 
@@ -154,7 +156,7 @@ func resolveCollision(manifold *Manifold) {
 	}
 
 	// applying impulse
-	e := (bodyA.restitution+bodyB.restitution)/2
+	e := (bodyA.restitution + bodyB.restitution) / 2
 
 	var impulseList [2]Vector
 	var raList [2]Vector
@@ -163,8 +165,8 @@ func resolveCollision(manifold *Manifold) {
 	var jList [2]float32
 
 	for i, p := range contactPoints[:contactCount] {
-		ra := VectorSubtract(p, bodyA.Position)
-		rb := VectorSubtract(p, bodyB.Position)
+		ra := VectorSubtract(p, bodyA.position)
+		rb := VectorSubtract(p, bodyB.position)
 
 		raList[i] = ra
 		rbList[i] = rb
@@ -200,13 +202,13 @@ func resolveCollision(manifold *Manifold) {
 		rb := rbList[i]
 
 		bodyA.Velocity.AddValue(VectorMul(imp, -bodyA.invMass))
-		if !bodyA.RotationDisabled { 
+		if !bodyA.RotationDisabled {
 			bodyA.AngularVelocity += -VectorCrossProduct(ra, imp) * bodyA.invInertia
 		}
 		bodyB.Velocity.AddValue(VectorMul(imp, bodyB.invMass))
-		if !bodyB.RotationDisabled { 
+		if !bodyB.RotationDisabled {
 			bodyB.AngularVelocity += VectorCrossProduct(rb, imp) * bodyB.invInertia
-		} 
+		}
 	}
 
 	// applying friction
@@ -215,8 +217,8 @@ func resolveCollision(manifold *Manifold) {
 	df := (bodyA.dynamicFriction + bodyB.dynamicFriction) / 2
 
 	for i, p := range contactPoints[:contactCount] {
-		ra := VectorSubtract(p, bodyA.Position)
-		rb := VectorSubtract(p, bodyB.Position)
+		ra := VectorSubtract(p, bodyA.position)
+		rb := VectorSubtract(p, bodyB.position)
 
 		raList[i] = ra
 		rbList[i] = rb
@@ -261,7 +263,7 @@ func resolveCollision(manifold *Manifold) {
 		rb := rbList[i]
 
 		bodyA.Velocity.AddValue(VectorMul(f, -bodyA.invMass))
-		if !bodyA.RotationDisabled { 
+		if !bodyA.RotationDisabled {
 			bodyA.AngularVelocity += -VectorCrossProduct(ra, f) * bodyA.invInertia
 		}
 		bodyB.Velocity.AddValue(VectorMul(f, bodyB.invMass))
