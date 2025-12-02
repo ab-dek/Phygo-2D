@@ -18,18 +18,14 @@ type Body struct {
 	AngularVelocity float32
 	Force           Vector
 
-	mass            float32
-	invMass         float32
-	restitution     float32
-	area            float32
-	inertia         float32
-	invInertia      float32
-	staticFriction  float32
-	dynamicFriction float32
+	mass, invMass, restitution      float32
+	area, inertia, invInertia       float32
+	staticFriction, dynamicFriction float32
 
 	IsStatic         bool
 	RotationDisabled bool
 	IsOnGround       bool
+	UseGravity       bool
 	ShapeType        ShapeType
 	// used for circle shapes
 	radius float32
@@ -56,6 +52,7 @@ func CreateBodyCircle(pos Vector, radius, density float32, isStatic bool) *Body 
 		IsStatic:         isStatic,
 		IsOnGround:       false,
 		RotationDisabled: false,
+		UseGravity:       true,
 		ShapeType:        CircleShape,
 		radius:           radius,
 	}
@@ -89,6 +86,7 @@ func CreateBodyRectangle(pos Vector, width, height, density float32, isStatic bo
 		IsStatic:         isStatic,
 		IsOnGround:       false,
 		RotationDisabled: false,
+		UseGravity:       true,
 		ShapeType:        RectangleShape,
 		width:            width,
 		height:           height,
@@ -155,11 +153,11 @@ func (b *Body) step(time float32, iteration int) {
 
 	time /= float32(iteration)
 
-	b.IsOnGround = false
-
 	acceleration := VectorMul(b.Force, b.invMass)
 	b.Velocity.AddValue(VectorMul(acceleration, time))
-	b.Velocity.AddValue(VectorMul(gravity, time))
+	if b.UseGravity {
+		b.Velocity.AddValue(VectorMul(gravity, time))
+	}
 	b.position.AddValue(VectorMul(b.Velocity, ppu*time))
 	if !b.RotationDisabled {
 		b.Rotation += b.AngularVelocity * ppu * time
@@ -174,19 +172,28 @@ func (b *Body) step(time float32, iteration int) {
 }
 
 func (b *Body) Move(deltaPos Vector) {
+	b.position.AddValue(VectorMul(deltaPos, 1/float32(ppu)))
+	b.transformUpdateRequired = true
+}
+
+func (b *Body) move(deltaPos Vector) {
 	b.position.AddValue(deltaPos)
+	b.transformUpdateRequired = true
 }
 
 func (b *Body) MoveTo(newPos Vector) {
-	b.position = newPos
+	b.position = VectorMul(newPos, 1/float32(ppu))
+	b.transformUpdateRequired = true
 }
 
 func (b *Body) Rotate(amount float32) {
 	b.Rotation += amount
+	b.transformUpdateRequired = true
 }
 
 func (b *Body) RotateTo(amount float32) {
 	b.Rotation = amount
+	b.transformUpdateRequired = true
 }
 
 func (b *Body) ApplyForce(amount Vector) {
@@ -239,13 +246,13 @@ func (b *Body) GetVertices() [4]Vector {
 }
 
 func (b *Body) GetRadius() float32 {
-	return b.radius*ppu
+	return b.radius * ppu
 }
 
 func (b *Body) GetWidth() float32 {
-	return b.width*ppu
+	return b.width * ppu
 }
 
 func (b *Body) GetHeight() float32 {
-	return b.height*ppu
+	return b.height * ppu
 }

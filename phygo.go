@@ -90,6 +90,7 @@ func step(time float32, iteration int) {
 	// movement step
 	for _, b := range bodies[:bodyCount] {
 		b.step(time, iteration)
+		b.IsOnGround = false
 		b.TransformVertices()
 	}
 
@@ -117,7 +118,7 @@ func step(time float32, iteration int) {
 				continue
 			}
 
-			if ok, depth, normal := checkCollision(bodyA, bodyB); ok {
+			if ok, depth, normal := CheckCollision(bodyA, bodyB); ok {
 				cntPoints, cntCount := findContactPoints(*bodyA, *bodyB)
 				createManifold(bodyA, bodyB, normal, depth, cntPoints, cntCount)
 			}
@@ -147,12 +148,12 @@ func resolveCollision(manifold *Manifold) {
 
 	// separating overlapping bodies
 	if bodyA.IsStatic {
-		bodyB.Move(VectorMul(normal, depth))
+		bodyB.move(VectorMul(normal, depth))
 	} else if bodyB.IsStatic {
-		bodyA.Move(VectorMul(normal, -depth))
+		bodyA.move(VectorMul(normal, -depth))
 	} else {
-		bodyA.Move(VectorMul(normal, -depth/2))
-		bodyB.Move(VectorMul(normal, depth/2))
+		bodyA.move(VectorMul(normal, -depth/2))
+		bodyB.move(VectorMul(normal, depth/2))
 	}
 
 	// applying impulse

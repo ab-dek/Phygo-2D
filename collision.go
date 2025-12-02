@@ -2,7 +2,7 @@ package phygo
 
 import "math"
 
-func checkCollision(bodyA, bodyB *Body) (bool, float32, Vector) {
+func CheckCollision(bodyA, bodyB *Body) (bool, float32, Vector) {
 	shapeA := bodyA.ShapeType
 	shapeB := bodyB.ShapeType
 
@@ -29,7 +29,7 @@ func checkCollisionPolygons(polygonA, polygonB []Vector, centerA, centerB Vector
 
 	for i := 0; i < len(polygonA); i++ {
 		vertex1 := polygonA[i]
-		vertex2 := polygonA[(i + 1) % len(polygonA)]
+		vertex2 := polygonA[(i+1)%len(polygonA)]
 
 		edge := VectorSubtract(vertex2, vertex1)
 		axis := NewVector(-edge.Y, edge.X)
@@ -52,7 +52,7 @@ func checkCollisionPolygons(polygonA, polygonB []Vector, centerA, centerB Vector
 
 	for i := 0; i < len(polygonB); i++ {
 		vertex1 := polygonB[i]
-		vertex2 := polygonB[(i + 1) % len(polygonB)]
+		vertex2 := polygonB[(i+1)%len(polygonB)]
 
 		edge := VectorSubtract(vertex2, vertex1)
 		axis := NewVector(-edge.Y, edge.X)
@@ -113,7 +113,7 @@ func checkCollisionPolygonCircle(circleCenter, polygonCenter Vector, radius floa
 
 	for i := 0; i < len(polygon); i++ {
 		vertex1 := polygon[i]
-		vertex2 := polygon[(i + 1) % len(polygon)]
+		vertex2 := polygon[(i+1)%len(polygon)]
 
 		edge := VectorSubtract(vertex2, vertex1)
 		axis := NewVector(-edge.Y, edge.X)
@@ -228,7 +228,7 @@ func findContactPointsPolygons(verticesA, verticesB []Vector) ([2]Vector, int) {
 	for _, p := range verticesA {
 		for i := range verticesB {
 			va := verticesB[i]
-			vb := verticesB[(i + 1) % len(verticesB)]
+			vb := verticesB[(i+1)%len(verticesB)]
 			distSqr, contact := pointSegmentDistance(p, va, vb)
 
 			if NearlyEqual(distSqr, minDist) {
@@ -247,7 +247,7 @@ func findContactPointsPolygons(verticesA, verticesB []Vector) ([2]Vector, int) {
 	for _, p := range verticesB {
 		for i := range verticesA {
 			va := verticesA[i]
-			vb := verticesA[(i + 1) % len(verticesA)]
+			vb := verticesA[(i+1)%len(verticesA)]
 			distSqr, contact := pointSegmentDistance(p, va, vb)
 
 			if NearlyEqual(distSqr, minDist) {
@@ -272,7 +272,7 @@ func findContactPointCirclePolygon(circleCenter Vector, vertices []Vector) Vecto
 
 	for i := range vertices {
 		vertexA := vertices[i]
-		vertexB := vertices[(i + 1) % len(vertices)]
+		vertexB := vertices[(i+1)%len(vertices)]
 		distSqr, contact := pointSegmentDistance(circleCenter, vertexA, vertexB)
 		if distSqr < minDist {
 			minDist = distSqr

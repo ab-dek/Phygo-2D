@@ -39,6 +39,10 @@ func VectorCrossProduct(v1, v2 Vector) float32 {
 	return v1.X*v2.Y - v1.Y*v2.X
 }
 
+func VectorLerp(v1, v2 Vector, amount float32) Vector {
+	return NewVector(v1.X+amount*(v2.X-v1.X), v1.Y+amount*(v2.Y-v1.Y))
+}
+
 func ClampFloat(value, min, max float32) float32 {
 	if min == max { 
 		return min 
