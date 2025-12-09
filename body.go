@@ -135,7 +135,7 @@ func (b *Body) SetDynamicFriction(dFriction float32) {
 	b.dynamicFriction = ClampFloat(dFriction, minFriction, maxFriction)
 }
 
-func (b *Body) TransformVertices() {
+func (b *Body) transformVertices() {
 	if b.transformUpdateRequired {
 		transform := NewTransform(b.position.X, b.position.Y, b.Rotation)
 
@@ -179,28 +179,32 @@ func (b *Body) Move(deltaPos Vector) {
 func (b *Body) move(deltaPos Vector) {
 	b.position.AddValue(deltaPos)
 	b.transformUpdateRequired = true
+	b.aabbUpdateRequired = true
 }
 
 func (b *Body) MoveTo(newPos Vector) {
 	b.position = VectorMul(newPos, 1/float32(ppu))
 	b.transformUpdateRequired = true
+	b.aabbUpdateRequired = true
 }
 
 func (b *Body) Rotate(amount float32) {
 	b.Rotation += amount
 	b.transformUpdateRequired = true
+	b.aabbUpdateRequired = true
 }
 
 func (b *Body) RotateTo(amount float32) {
 	b.Rotation = amount
 	b.transformUpdateRequired = true
+	b.aabbUpdateRequired = true
 }
 
 func (b *Body) ApplyForce(amount Vector) {
 	b.Force = amount
 }
 
-func (b *Body) getAABB() AABB {
+func (b *Body) updateAABB() {
 	if b.aabbUpdateRequired {
 		minX := float32(math.MaxFloat32)
 		minY := float32(math.MaxFloat32)
@@ -230,7 +234,37 @@ func (b *Body) getAABB() AABB {
 		b.aabb = newAABB(minX, minY, maxX, maxY)
 	}
 	b.aabbUpdateRequired = false
-	return b.aabb
+}
+
+func (b Body) GetAABB() AABB {
+	b.transformVertices()
+
+	minX := float32(math.MaxFloat32)
+	minY := float32(math.MaxFloat32)
+	maxX := float32(math.SmallestNonzeroFloat32)
+	maxY := float32(math.SmallestNonzeroFloat32)
+	if b.ShapeType == RectangleShape {
+		for _, v := range b.vertices {
+			if v.X < minX {
+				minX = v.X
+			}
+			if v.X > maxX {
+				maxX = v.X
+			}
+			if v.Y < minY {
+				minY = v.Y
+			}
+			if v.Y > maxY {
+				maxY = v.Y
+			}
+		}
+	} else {
+		minX = b.position.X - b.radius
+		minY = b.position.Y - b.radius
+		maxX = b.position.X + b.radius
+		maxY = b.position.Y + b.radius
+	}
+	return newAABB(minX*ppu, minY*ppu, maxX*ppu, maxY*ppu)
 }
 
 func (b *Body) GetPos() Vector {
@@ -238,6 +272,8 @@ func (b *Body) GetPos() Vector {
 }
 
 func (b *Body) GetVertices() [4]Vector {
+	b.transformVertices()
+
 	var verts [4]Vector
 	for i, v := range b.vertices {
 		verts[i] = VectorMul(v, ppu)

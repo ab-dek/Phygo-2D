@@ -56,7 +56,7 @@ func GetBodies() []*Body {
 
 func addBody(b *Body) {
 	bodies[bodyCount] = b
-	b.Id = bodyCount
+	b.Id = getId()
 	bodyCount++
 }
 
@@ -80,6 +80,26 @@ func RemoveBody(b *Body) {
 	bodyCount--
 }
 
+func getId() int {
+	index := -1
+	for i := 0; i < maxBodies; i++ {
+		currentID := i
+
+		for j := 0; j < bodyCount; j++ {
+			if bodies[j].Id == currentID {
+				currentID++
+				break
+			}
+		}
+
+		if currentID == i {
+			index = i
+			break
+		}
+	}
+	return index
+}
+
 func UpdatePhysics(time float32) {
 	for i := 0; i < iterations; i++ {
 		step(time, iterations)
@@ -91,7 +111,8 @@ func step(time float32, iteration int) {
 	for _, b := range bodies[:bodyCount] {
 		b.step(time, iteration)
 		b.IsOnGround = false
-		b.TransformVertices()
+		b.transformVertices()
+		b.updateAABB()
 	}
 
 	// clearing the previous step manifold list
@@ -105,16 +126,14 @@ func step(time float32, iteration int) {
 	//collision step
 	for i := 0; i < bodyCount-1; i++ {
 		bodyA := bodies[i]
-		aabbA := bodyA.getAABB()
 		for j := i + 1; j < bodyCount; j++ {
 			bodyB := bodies[j]
-			aabbB := bodyB.getAABB()
 
 			if bodyA.IsStatic && bodyB.IsStatic {
 				continue
 			}
 
-			if !checkCollisionAABBs(aabbA, aabbB) {
+			if !CheckCollisionAABBs(bodyA.aabb, bodyB.aabb) {
 				continue
 			}
 
