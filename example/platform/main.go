@@ -12,24 +12,25 @@ func main() {
 
 	rl.InitWindow(screenWidth, screenHeight, "Phygo example")
 	defer rl.CloseWindow()
-	defer phygo.Close()
+	defer phygo.Close() // Clean up
 
-	phygo.SetGravity(0, 2)
+	phygo.SetGravity(0, 2) // Initialize Gravity (x, y)
 
 	rl.SetTargetFPS(60)
 
+	// Create Rectange Body
 	player := phygo.CreateBodyRectangle(phygo.NewVector(float32(screenWidth)/2, 0), 45, 45, 1, false)
 	player.RotationDisabled = true
 	player.SetDynamicFriction(0.8)
 	
-	// ground body
+	// ground body(Static)
 	phygo.CreateBodyRectangle(phygo.NewVector(float32(screenWidth)/2, float32(screenHeight)-25), float32(screenWidth), 50, 1, true)
 	
-	// walls
+	// walls(Static)
 	phygo.CreateBodyRectangle(phygo.NewVector(0, float32(screenHeight/2)), 20, float32(screenHeight)-100, 1, true)
 	phygo.CreateBodyRectangle(phygo.NewVector(float32(screenWidth), float32(screenHeight/2)), 20, float32(screenHeight)-100, 1, true)
 	
-	// platforms
+	// platforms(Static)
 	phygo.CreateBodyRectangle(phygo.NewVector(float32(screenWidth*2/3), float32(screenHeight/3)), float32(screenWidth)/3, 10, 1, true)
 	phygo.CreateBodyRectangle(phygo.NewVector(float32(screenWidth/3), float32(screenHeight*2/3)), float32(screenWidth)/3, 10, 1, true)
 	
@@ -48,6 +49,7 @@ func main() {
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.Black)
 
+		// Iterate over all bodies to draw them
 		for _, b := range phygo.GetBodies() {
 			if b.ShapeType == phygo.RectangleShape {
 				for i := range b.GetVertices() {

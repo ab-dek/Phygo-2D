@@ -15,15 +15,17 @@ func main() {
 	rl.SetConfigFlags(rl.FlagMsaa4xHint)
 	rl.InitWindow(screenWidth, screenHeight, "Phygo example")
 	defer rl.CloseWindow()
-	defer phygo.Close()
+	defer phygo.Close() // Clean up
 
 	rl.SetTargetFPS(60)
-	phygo.SetGravity(0, 0.4)
+	phygo.SetGravity(0, 0.4) // Initialize Gravity (x, y)
 
 	for i := 0; i < 30; i++ {
 		if i % 2 == 0 {
+			// Create Rectange Bodies
 			phygo.CreateBodyRectangle(phygo.NewVector(rand.Float32()*float32(screenWidth), -rand.Float32()*float32(screenHeight-50)), float32(rand.Intn(40)+10), float32(rand.Intn(40)+10), 5, false)
 		} else {
+			// Create Circle Bodies
 			c := phygo.CreateBodyCircle(phygo.NewVector(rand.Float32()*float32(screenWidth), -rand.Float32()*float32(screenHeight-50)), float32(rand.Intn(20)+10), 5, false)
 			c.SetRestitution(0.5)
 		}
@@ -48,6 +50,7 @@ func main() {
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.Black)
 
+		// Iterate over all bodies to draw them
 		for _, b := range phygo.GetBodies() {
 			if b.ShapeType == phygo.RectangleShape {
 				for i := range b.GetVertices() {
