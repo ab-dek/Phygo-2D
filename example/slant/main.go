@@ -18,16 +18,19 @@ func main() {
 	defer phygo.Close() // Clean up
 
 	rl.SetTargetFPS(60)
-	phygo.SetGravity(0, 0.4) // Initialize Gravity (x, y)
+	phygo.SetGravity(0, 0.3) // Initialize Gravity (x, y)
 
 	for i := 0; i < 30; i++ {
 		if i % 2 == 0 {
-			// Create Rectange Bodies
-			phygo.CreateBodyRectangle(phygo.NewVector(rand.Float32()*float32(screenWidth), -rand.Float32()*float32(screenHeight-50)), float32(rand.Intn(40)+10), float32(rand.Intn(40)+10), 5, false)
+			// Create rectangle bodies
+			r := phygo.CreateBodyRectangle(phygo.NewVector(rand.Float32()*float32(screenWidth), -rand.Float32()*float32(screenHeight-50)), 30, 30, 1, false)
+			r.SetRestitution(0.3)
+			r.SetDynamicFriction(0.1)
 		} else {
-			// Create Circle Bodies
-			c := phygo.CreateBodyCircle(phygo.NewVector(rand.Float32()*float32(screenWidth), -rand.Float32()*float32(screenHeight-50)), float32(rand.Intn(20)+10), 5, false)
-			c.SetRestitution(0.5)
+			// Create circle bodies
+			c := phygo.CreateBodyCircle(phygo.NewVector(rand.Float32()*float32(screenWidth), -rand.Float32()*float32(screenHeight-50)), float32(rand.Intn(20)+10), 1, false)
+			c.SetRestitution(0.7)
+			c.SetDynamicFriction(0.1)
 		}
 	}
 	
