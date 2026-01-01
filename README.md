@@ -19,7 +19,7 @@ Phygo2D is designed to handle basic 2D physics simulations, including collision 
 
 To use Phygo2D in your Go project, run:
 ```bash
-go get https://github.com/ab-dek/phygo2d
+go get https://github.com/ab-dek/Phygo-2D
 ```
 
 ## Usage

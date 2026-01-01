@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ab-dek/phygo2d/phygo"
+	"github.com/ab-dek/Phygo-2D/phygo"
 
 	rl "github.com/gen2brain/raylib-go/raylib"
 )
